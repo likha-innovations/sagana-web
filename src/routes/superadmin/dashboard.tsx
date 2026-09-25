@@ -1,5 +1,4 @@
-import React from 'react'
-import { useQuery } from '@tanstack/react-query'
+﻿import { useQuery } from '@tanstack/react-query'
 import { Link } from 'react-router'
 import { useAuthContext } from '@/context/auth-context'
 import { authApi } from '@/api/auth.api'
@@ -18,7 +17,7 @@ import {
   Zap,
 } from 'lucide-react'
 
-export const SuperadminDashboard: React.FC = () => {
+export function SuperadminDashboard() {
   const { getToken, user } = useAuthContext()
   const { isConnected, transport, lastPingTime, socket } = useSocketContext()
 
@@ -240,3 +239,4 @@ export const SuperadminDashboard: React.FC = () => {
     </div>
   )
 }
+

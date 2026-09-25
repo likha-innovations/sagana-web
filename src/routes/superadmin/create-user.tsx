@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+﻿import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Link, useNavigate } from 'react-router'
@@ -14,7 +14,7 @@ import { UserPlus, ArrowLeft, Loader2 } from 'lucide-react'
 
 const logger = createLogger('CreateUser')
 
-export const CreateUserPage: React.FC = () => {
+export function CreateUserPage() {
   const navigate = useNavigate()
   const { signUp, isLoaded } = useAuthContext()
   const [isSubmitting, setIsSubmitting] = useState(false)

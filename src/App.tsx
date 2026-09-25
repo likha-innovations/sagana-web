@@ -1,13 +1,23 @@
-import React from 'react'
-import { Routes, Route, Navigate } from 'react-router'
+﻿import { Routes, Route, Navigate } from 'react-router'
 import { SignInPage } from '@/routes/auth/sign-in'
 import { AdminPage } from '@/routes/admin'
 import { SuperadminDashboard } from '@/routes/superadmin/dashboard'
 import { CreateUserPage } from '@/routes/superadmin/create-user'
 import { AppShell } from '@/components/layout/app-shell'
 import { RoleGuard } from '@/components/layout/role-guard'
+import { useAuthContext } from '@/context/auth-context'
 
-export const App: React.FC = () => {
+function IndexRedirect() {
+  const { isLoaded, isSignedIn, role } = useAuthContext()
+
+  if (!isLoaded) return null
+  if (!isSignedIn) return <Navigate to="/sign-in" replace />
+  if (role === 'superadmin') return <Navigate to="/superadmin" replace />
+  if (role === 'admin') return <Navigate to="/admin" replace />
+  return <Navigate to="/superadmin" replace />
+}
+
+export function App() {
   return (
     <Routes>
       {/* Public Auth Routes */}
@@ -46,8 +56,8 @@ export const App: React.FC = () => {
       </Route>
 
       {/* Defaults */}
-      <Route path="/" element={<Navigate to="/superadmin" replace />} />
-      <Route path="*" element={<Navigate to="/superadmin" replace />} />
+      <Route path="/" element={<IndexRedirect />} />
+      <Route path="*" element={<IndexRedirect />} />
     </Routes>
   )
 }

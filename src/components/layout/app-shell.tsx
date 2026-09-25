@@ -1,4 +1,4 @@
-import React from 'react'
+﻿import { type ReactNode } from 'react'
 import { Link, useLocation } from 'react-router'
 import { useAuthContext } from '@/context/auth-context'
 import { useSocketContext } from '@/context/socket-context'
@@ -6,9 +6,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { ShieldCheck, UserPlus, LayoutDashboard, Radio, LogOut, User as UserIcon } from 'lucide-react'
 
-export const AppShell: React.FC<{ children: React.ReactNode }> = ({
-  children,
-}) => {
+export function AppShell({ children }: { children: ReactNode }) {
   const { user, role, signOut } = useAuthContext()
   const location = useLocation()
   const { isConnected } = useSocketContext()
@@ -137,3 +135,4 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({
     </div>
   )
 }
+
