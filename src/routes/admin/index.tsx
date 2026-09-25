@@ -1,8 +1,7 @@
-import React from 'react'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+﻿import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Shield } from 'lucide-react'
 
-export const AdminPage: React.FC = () => {
+export function AdminPage() {
   return (
     <div className="flex flex-col items-center justify-center min-h-[60vh]">
       <Card className="max-w-md w-full text-center border-dashed">

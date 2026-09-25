@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react'
+﻿import { createContext, useContext, useState, useEffect, useCallback, useMemo, type ReactNode } from 'react'
 import { useAuth, useUser, useClerk } from '@clerk/react'
 import {
   type User,
@@ -25,9 +25,7 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | null>(null)
 
-export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
-  children,
-}) => {
+export function AuthProvider({ children }: { children: ReactNode }) {
   const { isSignedIn, isLoaded: authLoaded, getToken } = useAuth()
   const { user: clerkUser, isLoaded: userLoaded } = useUser()
   const clerk = useClerk()
@@ -220,3 +218,4 @@ export function useAuthContext() {
   }
   return context
 }
+

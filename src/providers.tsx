@@ -1,4 +1,4 @@
-import React from 'react'
+﻿import { type ReactNode } from 'react'
 import { ClerkProvider } from '@clerk/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { Toaster } from 'sonner'
@@ -19,9 +19,11 @@ const queryClient = new QueryClient({
   },
 })
 
-export const Providers: React.FC<{ children: React.ReactNode }> = ({
-  children,
-}) => {
+interface ProvidersProps {
+  children: ReactNode
+}
+
+export function Providers({ children }: ProvidersProps) {
   if (!CLERK_PUBLISHABLE_KEY) {
     logger.warn('VITE_CLERK_PUBLISHABLE_KEY is not defined in environment')
     return (

@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useRef, useState } from 'react'
+﻿import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from 'react'
 import { io, type Socket } from 'socket.io-client'
 import { createLogger } from '@/lib/logger'
 
@@ -21,9 +21,7 @@ const SocketContext = createContext<SocketContextValue>({
 const BACKEND_URL =
   import.meta.env.VITE_BACKEND_URL || 'http://localhost:3000'
 
-export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({
-  children,
-}) => {
+export function SocketProvider({ children }: { children: ReactNode }) {
   const socketRef = useRef<Socket | null>(null)
   const [isConnected, setIsConnected] = useState(false)
   const [transport, setTransport] = useState('N/A')
@@ -93,3 +91,4 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({
 }
 
 export const useSocketContext = () => useContext(SocketContext)
+
