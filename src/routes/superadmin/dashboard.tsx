@@ -1,5 +1,7 @@
-﻿import { useQuery } from '@tanstack/react-query'
+import { useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { Link } from 'react-router'
+import { toast } from 'sonner'
 import { useAuthContext } from '@/context/auth-context'
 import { authApi } from '@/api/auth.api'
 import { useSocketContext } from '@/context/socket-context'
@@ -14,12 +16,28 @@ import {
   UserPlus,
   RefreshCw,
   Server,
-  Zap,
+  Thermometer,
+  Droplets,
+  Send,
+  Cpu,
+  Trash2,
+  Wifi,
+  WifiOff,
 } from 'lucide-react'
 
 export function SuperadminDashboard() {
   const { getToken, user } = useAuthContext()
-  const { isConnected, transport, lastPingTime, socket } = useSocketContext()
+  const {
+    isConnected,
+    transport,
+    lastPingTime,
+    latestTelemetry,
+    logs,
+    sendCommand,
+    clearLogs,
+  } = useSocketContext()
+
+  const [commandText, setCommandText] = useState('')
 
   // 1. Backend Health Check
   const {
@@ -44,11 +62,28 @@ export function SuperadminDashboard() {
     enabled: !!user,
   })
 
-  const sendTestPing = () => {
-    if (socket && isConnected) {
-      socket.emit('command', { action: 'ping', timestamp: Date.now() })
+  const handleSendCommand = (textToSend?: string) => {
+    const value = (textToSend ?? commandText).trim()
+    if (!value) return
+
+    const sent = sendCommand(value)
+    if (sent) {
+      setCommandText('')
+      toast.success(`Published to sagana/commands: ${value}`)
+    } else {
+      toast.error('Failed to dispatch command: Socket disconnected')
     }
   }
+
+  const tempVal =
+    latestTelemetry && typeof latestTelemetry === 'object' && 'temperature' in latestTelemetry
+      ? String(latestTelemetry.temperature)
+      : null
+
+  const humidityVal =
+    latestTelemetry && typeof latestTelemetry === 'object' && 'humidity' in latestTelemetry
+      ? String(latestTelemetry.humidity)
+      : null
 
   return (
     <div className="space-y-8">
@@ -57,7 +92,7 @@ export function SuperadminDashboard() {
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Superadmin Dashboard</h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Real-time status overview connected directly to backend services and IoT telemetry.
+            Real-time status overview and two-way IoT telemetry bridge.
           </p>
         </div>
         <div className="flex items-center gap-3">
@@ -117,26 +152,15 @@ export function SuperadminDashboard() {
               <span className="text-2xl font-bold">
                 {isConnected ? 'Online' : 'Standby'}
               </span>
-              <Badge variant={isConnected ? 'success' : 'destructive'}>
+              <Badge variant={isConnected ? 'success' : 'destructive'} className="gap-1">
+                {isConnected ? <Wifi className="h-3 w-3" /> : <WifiOff className="h-3 w-3" />}
                 {isConnected ? 'Connected' : 'Offline'}
               </Badge>
             </div>
             <div className="flex items-center justify-between text-xs text-muted-foreground font-mono">
               <span>Transport: {transport}</span>
-              {isConnected && (
-                <button
-                  onClick={sendTestPing}
-                  className="text-primary hover:underline flex items-center gap-1"
-                >
-                  <Zap className="h-3 w-3" /> Ping Gateway
-                </button>
-              )}
+              {lastPingTime && <span>Last ping: {lastPingTime}</span>}
             </div>
-            {lastPingTime && (
-              <p className="text-[11px] text-muted-foreground font-mono">
-                Last stream ping: {lastPingTime}
-              </p>
-            )}
           </CardContent>
         </Card>
 
@@ -162,12 +186,228 @@ export function SuperadminDashboard() {
         </Card>
       </div>
 
-      {/* Profile Details & System Info */}
+      {/* IoT 2-Way Event Bridge: sagana/stream & sagana/commands */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Section 1: Live Telemetry (sagana/stream) */}
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-base flex items-center gap-2">
+                <Activity className="h-4 w-4 text-emerald-500" /> Live Telemetry
+              </CardTitle>
+              <Badge variant="secondary" className="font-mono text-[11px]">
+                sagana/stream
+              </Badge>
+            </div>
+            <CardDescription>
+              Inbound sensor stream bridged to Socket.IO event &apos;telemetry&apos;.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {latestTelemetry ? (
+              <div className="space-y-4">
+                {(tempVal !== null || humidityVal !== null) && (
+                  <div className="grid grid-cols-2 gap-3">
+                    {tempVal !== null && (
+                      <div className="rounded-xl border bg-card p-3.5 shadow-sm">
+                        <div className="flex items-center gap-2 mb-1.5">
+                          <div className="h-7 w-7 rounded-lg bg-orange-500/10 flex items-center justify-center text-orange-500">
+                            <Thermometer className="h-4 w-4" />
+                          </div>
+                          <span className="text-xs font-medium text-muted-foreground uppercase">
+                            Temperature
+                          </span>
+                        </div>
+                        <p className="text-2xl font-bold tracking-tight text-foreground">
+                          {tempVal}°C
+                        </p>
+                      </div>
+                    )}
+                    {humidityVal !== null && (
+                      <div className="rounded-xl border bg-card p-3.5 shadow-sm">
+                        <div className="flex items-center gap-2 mb-1.5">
+                          <div className="h-7 w-7 rounded-lg bg-sky-500/10 flex items-center justify-center text-sky-500">
+                            <Droplets className="h-4 w-4" />
+                          </div>
+                          <span className="text-xs font-medium text-muted-foreground uppercase">
+                            Humidity
+                          </span>
+                        </div>
+                        <p className="text-2xl font-bold tracking-tight text-foreground">
+                          {humidityVal}%
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                )}
+                <div className="rounded-xl border bg-muted/30 p-3.5">
+                  <p className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground mb-2">
+                    Raw Stream Payload
+                  </p>
+                  <pre className="font-mono text-xs text-foreground overflow-x-auto whitespace-pre-wrap leading-relaxed max-h-48">
+                    {JSON.stringify(latestTelemetry, null, 2)}
+                  </pre>
+                </div>
+              </div>
+            ) : (
+              <div className="py-10 text-center flex flex-col items-center justify-center rounded-xl border border-dashed p-6">
+                <Cpu className="h-8 w-8 text-muted-foreground mb-2" />
+                <p className="text-sm font-medium text-foreground">
+                  Waiting for Telemetry
+                </p>
+                <p className="text-xs text-muted-foreground mt-1 max-w-xs">
+                  Publish a message to sagana/stream in HiveMQ to stream data here in real time.
+                </p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Section 2: Command Dispatch (sagana/commands) */}
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-base flex items-center gap-2">
+                <Send className="h-4 w-4 text-primary" /> Send Command
+              </CardTitle>
+              <Badge variant="secondary" className="font-mono text-[11px]">
+                sagana/commands
+              </Badge>
+            </div>
+            <CardDescription>
+              Outbound actuator instructions dispatched via Socket.IO event &apos;command&apos;.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div>
+              <p className="text-xs font-medium text-muted-foreground mb-2">
+                Quick Action Presets
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {['RELAY_ON', 'RELAY_OFF', '{"state":1}', '{"state":0}'].map((preset) => (
+                  <button
+                    key={preset}
+                    type="button"
+                    onClick={() => handleSendCommand(preset)}
+                    disabled={!isConnected}
+                    className="rounded-lg bg-muted px-2.5 py-1 text-xs font-mono border hover:bg-muted/80 disabled:opacity-50 transition-colors"
+                  >
+                    {preset}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <p className="text-xs font-medium text-muted-foreground">
+                Custom Instruction
+              </p>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={commandText}
+                  onChange={(e) => setCommandText(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleSendCommand()}
+                  placeholder="Type command (e.g. RELAY_ON)..."
+                  disabled={!isConnected}
+                  className="flex-1 h-9 rounded-md border border-input bg-background px-3 text-sm focus:outline-none focus:ring-1 focus:ring-ring disabled:opacity-50 font-mono text-xs"
+                />
+                <Button
+                  size="sm"
+                  onClick={() => handleSendCommand()}
+                  disabled={!isConnected || !commandText.trim()}
+                  className="gap-1.5"
+                >
+                  <Send className="h-3.5 w-3.5" /> Send
+                </Button>
+              </div>
+            </div>
+
+            {/* Architecture Pulse Integration */}
+            <div className="pt-2 border-t space-y-2 text-xs">
+              <div className="flex items-center justify-between text-muted-foreground">
+                <span>Inbound Stream:</span>
+                <span className="font-mono text-foreground">sagana/stream ➔ &apos;telemetry&apos;</span>
+              </div>
+              <div className="flex items-center justify-between text-muted-foreground">
+                <span>Outbound Command:</span>
+                <span className="font-mono text-foreground">&apos;command&apos; ➔ sagana/commands</span>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Activity Logs & System Details */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Real-time Activity Stream */}
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-base flex items-center gap-2">
+                <Clock className="h-4 w-4 text-primary" /> Recent Realtime Activity ({logs.length})
+              </CardTitle>
+              {logs.length > 0 && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={clearLogs}
+                  className="h-7 text-xs text-muted-foreground hover:text-foreground gap-1 px-2"
+                >
+                  <Trash2 className="h-3 w-3" /> Clear
+                </Button>
+              )}
+            </div>
+            <CardDescription>
+              Live activity stream of inbound telemetry and outbound command events.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            {logs.length > 0 ? (
+              logs.slice(0, 5).map((log) => (
+                <div
+                  key={log.id}
+                  className="rounded-lg border bg-card p-3 flex items-center justify-between text-xs"
+                >
+                  <div className="flex items-center gap-2.5 flex-1 mr-3 overflow-hidden">
+                    <span
+                      className={`h-2 w-2 rounded-full shrink-0 ${
+                        log.type === 'telemetry'
+                          ? 'bg-emerald-500'
+                          : log.type === 'command'
+                            ? 'bg-sky-500'
+                            : log.type === 'error'
+                              ? 'bg-destructive'
+                              : 'bg-muted-foreground'
+                      }`}
+                    />
+                    <div className="min-w-0 flex-1">
+                      <p className="font-medium text-foreground truncate">{log.title}</p>
+                      <p className="text-[11px] text-muted-foreground truncate font-mono">
+                        {typeof log.payload === 'object'
+                          ? JSON.stringify(log.payload)
+                          : String(log.payload)}
+                      </p>
+                    </div>
+                  </div>
+                  <span className="text-[10px] font-mono text-muted-foreground shrink-0">
+                    {new Date(log.timestamp).toLocaleTimeString()}
+                  </span>
+                </div>
+              ))
+            ) : (
+              <div className="py-8 text-center text-xs text-muted-foreground">
+                No recent realtime events recorded.
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Profile Details & Architecture Specs */}
         <Card>
           <CardHeader>
             <CardTitle className="text-base flex items-center gap-2">
-              <Activity className="h-4 w-4 text-primary" /> Active Superadmin Profile
+              <Server className="h-4 w-4 text-primary" /> Active Superadmin Profile
             </CardTitle>
             <CardDescription>
               User record retrieved from backend PostgreSQL database via GET /me.
@@ -196,9 +436,9 @@ export function SuperadminDashboard() {
                   <dt className="text-xs text-muted-foreground">Location</dt>
                   <dd className="font-medium mt-0.5">{profile?.location || user?.location || 'Not set'}</dd>
                 </div>
-                <div className="sm:col-span-2">
+                <div className="sm:col-span-2 pt-2 border-t">
                   <dt className="text-xs text-muted-foreground">Clerk User ID</dt>
-                  <dd className="font-mono text-xs mt-0.5 text-muted-foreground">
+                  <dd className="font-mono text-xs mt-0.5 text-muted-foreground truncate">
                     {profile?.id || user?.id}
                   </dd>
                 </div>
@@ -206,37 +446,7 @@ export function SuperadminDashboard() {
             )}
           </CardContent>
         </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base flex items-center gap-2">
-              <Server className="h-4 w-4 text-primary" /> Architecture Pulse
-            </CardTitle>
-            <CardDescription>
-              Backend micro-architecture and protocol integrations status.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex items-center justify-between py-2 border-b text-sm">
-              <span className="text-muted-foreground">REST API Guard</span>
-              <span className="font-mono text-xs">ClerkAuthGuard (JWT Bearer)</span>
-            </div>
-            <div className="flex items-center justify-between py-2 border-b text-sm">
-              <span className="text-muted-foreground">Database Engine</span>
-              <span className="font-mono text-xs">PostgreSQL 16 (Neon Serverless)</span>
-            </div>
-            <div className="flex items-center justify-between py-2 border-b text-sm">
-              <span className="text-muted-foreground">Hardware IoT Broker</span>
-              <span className="font-mono text-xs">HiveMQ Cloud MQTT (TLS 8883)</span>
-            </div>
-            <div className="flex items-center justify-between py-2 text-sm">
-              <span className="text-muted-foreground">Client Bridge Gateway</span>
-              <span className="font-mono text-xs">Socket.IO /telemetry</span>
-            </div>
-          </CardContent>
-        </Card>
       </div>
     </div>
   )
 }
-
