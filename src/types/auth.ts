@@ -1,6 +1,6 @@
 import { z } from 'zod'
 
-export const userRoleSchema = z.enum(['operator', 'admin', 'superadmin', 'user'])
+export const userRoleSchema = z.enum(['operator', 'admin'])
 export type UserRole = z.infer<typeof userRoleSchema>
 
 export const userSchema = z.object({
@@ -43,7 +43,7 @@ export const signUpSchema = z.object({
   password: z
     .string()
     .min(8, 'Password must be at least 8 characters'),
-  role: userRoleSchema,
+  role: z.enum(['operator', 'admin']),
   contactNumber: z
     .string()
     .trim()
@@ -55,3 +55,11 @@ export const signUpSchema = z.object({
 })
 
 export type SignUpInput = z.infer<typeof signUpSchema>
+
+export const updateProfileSchema = z.object({
+  fullName: z.string().min(2, 'Full name must be at least 2 characters').optional(),
+  contactNumber: z.string().optional(),
+  location: z.string().optional(),
+})
+
+export type UpdateProfileInput = z.infer<typeof updateProfileSchema>

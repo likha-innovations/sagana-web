@@ -13,7 +13,7 @@ import { Mail, Lock, Eye, EyeOff, Loader2, ShieldCheck, ArrowRight } from 'lucid
 
 export function SignInPage() {
   const navigate = useNavigate()
-  const { signIn, isLoaded, isSignedIn, role } = useAuthContext()
+  const { signIn, isLoaded, isSignedIn } = useAuthContext()
   const [showPassword, setShowPassword] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [authError, setAuthError] = useState<string | null>(null)
@@ -30,11 +30,9 @@ export function SignInPage() {
     },
   })
 
-  // If already signed in, redirect according to role
+  // If already signed in, redirect to admin
   if (isLoaded && isSignedIn) {
-    if (role === 'superadmin') return <Navigate to="/superadmin" replace />
-    if (role === 'admin') return <Navigate to="/admin" replace />
-    return <Navigate to="/" replace />
+    return <Navigate to="/admin" replace />
   }
 
   const onSubmit = async (values: SignInInput) => {
@@ -43,8 +41,8 @@ export function SignInPage() {
 
     try {
       await signIn(values.email, values.password)
-      toast.success('Signed in successfully!')
-      navigate('/')
+      toast.success('Signed in successfully.')
+      navigate('/admin')
     } catch (err: unknown) {
       const errorObj = err as {
         errors?: Array<{ message?: string; longMessage?: string }>
@@ -64,22 +62,22 @@ export function SignInPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-muted/40 p-4">
-      <Card className="w-full max-w-md shadow-xl border-border bg-card">
+    <div className="min-h-screen flex items-center justify-center bg-background p-4">
+      <Card className="w-full max-w-md shadow-lg border-border bg-card">
         <CardHeader className="text-center space-y-2 pb-6">
-          <div className="mx-auto h-12 w-12 rounded-xl bg-primary flex items-center justify-center text-primary-foreground shadow-md">
+          <div className="mx-auto h-12 w-12 rounded-xl bg-primary flex items-center justify-center text-primary-foreground shadow">
             <ShieldCheck className="h-6 w-6" />
           </div>
           <div>
-            <CardTitle className="text-2xl font-bold tracking-tight">
+            <CardTitle className="text-2xl font-bold tracking-tight text-foreground">
               Sagana Web
             </CardTitle>
             <p className="text-xs text-muted-foreground uppercase font-mono tracking-wider mt-0.5">
-              Management Console
+              Admin Console
             </p>
           </div>
           <CardDescription className="text-sm">
-            Sign in with your authorized admin or superadmin account to manage the IoT platform.
+            Sign in with your authorized admin account to manage the platform.
           </CardDescription>
         </CardHeader>
 
@@ -91,15 +89,17 @@ export function SignInPage() {
           )}
 
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="email">Email Address</Label>
+            <div className="space-y-1.5">
+              <Label htmlFor="email" className="text-xs sm:text-sm font-medium">
+                Email Address
+              </Label>
               <div className="relative">
-                <Mail className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Mail className="absolute left-3 top-3.5 h-4 w-4 text-muted-foreground" />
                 <Input
                   id="email"
                   type="email"
                   placeholder="admin@sagana.ph"
-                  className="pl-9"
+                  className="pl-9 h-11 min-h-[44px] text-sm"
                   disabled={isSubmitting}
                   {...register('email')}
                 />
@@ -109,24 +109,25 @@ export function SignInPage() {
               )}
             </div>
 
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <Label htmlFor="password">Password</Label>
-              </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="password" className="text-xs sm:text-sm font-medium">
+                Password
+              </Label>
               <div className="relative">
-                <Lock className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Lock className="absolute left-3 top-3.5 h-4 w-4 text-muted-foreground" />
                 <Input
                   id="password"
                   type={showPassword ? 'text' : 'password'}
                   placeholder="Enter your password"
-                  className="pl-9 pr-9"
+                  className="pl-9 pr-11 h-11 min-h-[44px] text-sm"
                   disabled={isSubmitting}
                   {...register('password')}
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-2.5 text-muted-foreground hover:text-foreground transition-colors"
+                  className="absolute right-0 top-0 h-11 w-11 min-h-[44px] min-w-[44px] flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
+                  aria-label={showPassword ? 'Hide password' : 'Show password'}
                 >
                   {showPassword ? (
                     <EyeOff className="h-4 w-4" />
@@ -142,7 +143,7 @@ export function SignInPage() {
 
             <Button
               type="submit"
-              className="w-full gap-2 mt-2"
+              className="w-full gap-2 mt-2 h-11 min-h-[44px] text-sm"
               disabled={isSubmitting || !isLoaded}
             >
               {isSubmitting ? (
@@ -158,8 +159,8 @@ export function SignInPage() {
             </Button>
           </form>
 
-          <div className="mt-6 pt-4 border-t text-center text-xs text-muted-foreground">
-            <span>Enterprise security &bull; Authorized personnel only</span>
+          <div className="mt-6 pt-4 border-t border-border text-center text-xs text-muted-foreground">
+            <span>Authorized personnel only. Contact system lead for account access.</span>
           </div>
         </CardContent>
       </Card>
