@@ -8,7 +8,8 @@ import {
   signInSchema,
   signUpSchema,
 } from '@/types/auth'
-import { authApi } from '@/api/auth.api'
+import { userApi } from '@/api/user.api'
+import { setAuthTokenGetter } from '@/lib/auth-token'
 import { createLogger } from '@/lib/logger'
 
 const logger = createLogger('AuthContext')
@@ -34,25 +35,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const [isActionLoading, setIsActionLoading] = useState(false)
   const [dbUser, setDbUser] = useState<User | null>(null)
+  const [isProfileFetched, setIsProfileFetched] = useState(false)
+
+  // Automatically wire Clerk's active JWT getter into native apiFetch
+  useEffect(() => {
+    setAuthTokenGetter(getToken)
+  }, [getToken])
 
   // Fetch backend profile from PostgreSQL (/me) to get database role
   useEffect(() => {
     let isMounted = true
     if (!isSignedIn) {
-      setDbUser(null)
       return
     }
 
     const fetchProfile = async () => {
       try {
-        const token = await getToken()
-        if (!token) return
-        const profile = await authApi.getProfile(token)
+        const profile = await userApi.getProfile()
         if (isMounted) {
           setDbUser(profile)
         }
       } catch (err) {
         logger.warn('Failed to fetch DB user profile from /me', err)
+      } finally {
+        if (isMounted) {
+          setIsProfileFetched(true)
+        }
       }
     }
 
@@ -62,7 +70,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [isSignedIn, getToken])
 
-  const isLoaded = authLoaded && userLoaded && signInLoaded && !isActionLoading
+  const isLoaded =
+    authLoaded && userLoaded && signInLoaded && !isActionLoading && (!isSignedIn || isProfileFetched)
 
   // Normalized user object mirroring Prisma model and mobile AuthContext
   const user: User | null = useMemo(() => {
@@ -70,7 +79,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const unsafeMeta = (clerkUser.unsafeMetadata || {}) as Record<string, unknown>
     const publicMeta = (clerkUser.publicMetadata || {}) as Record<string, unknown>
 
-    const role = (dbUser?.role || publicMeta.role || unsafeMeta.role || 'user') as UserRole
+    const role = (dbUser?.role || publicMeta.role || unsafeMeta.role || 'operator') as UserRole
 
     return {
       id: clerkUser.id,
@@ -87,7 +96,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [clerkUser, dbUser])
 
-  const role: UserRole = user?.role || 'user'
+  const role: UserRole = user?.role || 'operator'
 
   const signIn = useCallback(
     async (email: string, password: string) => {
