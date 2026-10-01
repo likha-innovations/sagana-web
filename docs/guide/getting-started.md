@@ -4,7 +4,7 @@ Quick start guide for configuring, building, and running the Sagana Web applicat
 
 ## Prerequisites
 
-- Node.js 20 or higher
+- Node.js 24 or higher
 - pnpm 10 or higher
 - Clerk account with valid publishable keys
 - Running instance of Sagana backend service
