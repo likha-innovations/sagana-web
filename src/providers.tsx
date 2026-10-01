@@ -1,9 +1,8 @@
-﻿import { type ReactNode } from 'react'
+import { type ReactNode } from 'react'
 import { ClerkProvider } from '@clerk/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { Toaster } from 'sonner'
 import { AuthProvider } from '@/context/auth-context'
-import { SocketProvider } from '@/context/socket-context'
 import { BrowserRouter } from 'react-router'
 import { logger } from '@/lib/logger'
 
@@ -50,12 +49,10 @@ export function Providers({ children }: ProvidersProps) {
     <ClerkProvider publishableKey={CLERK_PUBLISHABLE_KEY}>
       <QueryClientProvider client={queryClient}>
         <AuthProvider>
-          <SocketProvider>
-            <BrowserRouter>
-              {children}
-              <Toaster position="top-right" richColors />
-            </BrowserRouter>
-          </SocketProvider>
+          <BrowserRouter>
+            {children}
+            <Toaster position="top-right" richColors />
+          </BrowserRouter>
         </AuthProvider>
       </QueryClientProvider>
     </ClerkProvider>
