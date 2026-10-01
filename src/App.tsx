@@ -1,8 +1,6 @@
-﻿import { Routes, Route, Navigate } from 'react-router'
+import { Routes, Route, Navigate } from 'react-router'
 import { SignInPage } from '@/routes/auth/sign-in'
-import { AdminPage } from '@/routes/admin'
-import { SuperadminDashboard } from '@/routes/superadmin/dashboard'
-import { CreateUserPage } from '@/routes/superadmin/create-user'
+import { AdminDashboard } from '@/routes/admin'
 import { AppShell } from '@/components/layout/app-shell'
 import { RoleGuard } from '@/components/layout/role-guard'
 import { useAuthContext } from '@/context/auth-context'
@@ -12,9 +10,8 @@ function IndexRedirect() {
 
   if (!isLoaded) return null
   if (!isSignedIn) return <Navigate to="/sign-in" replace />
-  if (role === 'superadmin') return <Navigate to="/superadmin" replace />
   if (role === 'admin') return <Navigate to="/admin" replace />
-  return <Navigate to="/superadmin" replace />
+  return <Navigate to="/admin" replace />
 }
 
 export function App() {
@@ -23,39 +20,19 @@ export function App() {
       {/* Public Auth Routes */}
       <Route path="/sign-in/*" element={<SignInPage />} />
 
-      {/* Admin Routes (Allowed: admin & superadmin) */}
-      <Route element={<RoleGuard allowedRoles={['admin', 'superadmin']} />}>
+      {/* Protected Admin Routes */}
+      <Route element={<RoleGuard allowedRoles={['admin']} />}>
         <Route
-          path="/admin/*"
+          path="/admin"
           element={
             <AppShell>
-              <AdminPage />
+              <AdminDashboard />
             </AppShell>
           }
         />
       </Route>
 
-      {/* Superadmin Routes (Allowed: superadmin) */}
-      <Route element={<RoleGuard allowedRoles={['superadmin']} />}>
-        <Route
-          path="/superadmin"
-          element={
-            <AppShell>
-              <SuperadminDashboard />
-            </AppShell>
-          }
-        />
-        <Route
-          path="/superadmin/create-account"
-          element={
-            <AppShell>
-              <CreateUserPage />
-            </AppShell>
-          }
-        />
-      </Route>
-
-      {/* Defaults */}
+      {/* Root & Catch-all Fallbacks */}
       <Route path="/" element={<IndexRedirect />} />
       <Route path="*" element={<IndexRedirect />} />
     </Routes>

@@ -1,4 +1,4 @@
-﻿# Project Memory: sagana-web
+# Project Memory: sagana-web
 
 Web client for Sagana platform built with React 19, Vite 8, Tailwind CSS v4, React Router v8, Clerk authentication, and TanStack Query v5.
 
@@ -15,8 +15,10 @@ Web client for Sagana platform built with React 19, Vite 8, Tailwind CSS v4, Rea
   - `src/context/`: Centralized state (`auth-context.tsx`, `socket-context.tsx`).
   - `src/lib/`: Logger (`createLogger` in Asia/Manila) and `cn()` utility.
   - `src/types/`: Single source of truth schemas (`auth.ts`, `api.ts`).
-  - `src/routes/`: Route components organized by role (`auth/`, `admin/`, `superadmin/`).
+  - `src/routes/`: Route components organized by section (`auth/`, `admin/`).
 
 ## Decisions
 - React 19 Alignment: Direct named imports only. Banned `React.FC` and `React.*` namespace calls.
 - Typed Native Fetch: Zero Axios. Native `apiFetch<T>` handles envelope unwrapping and error throwing.
+- Role Structure: Unified administrative tier (`admin`) and operator tier (`operator`). Clean scaffolding boilerplate with mobile-first touch targets.
+- Brand Design Alignment: Synced color palette directly from `sagana-mobile` (`#718619` olive green, `#FAF9EE` warm cream).
