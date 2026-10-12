@@ -1,5 +1,5 @@
 import { api } from './client'
-import type { User, UpdateProfileInput } from '@/types'
+import type { User, UpdateProfileInput } from '@/types/auth'
 
 // User & Profile REST API Endpoints (sagana-backend UsersController)
 export const userApi = {

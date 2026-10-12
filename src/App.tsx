@@ -1,40 +1,62 @@
-import { Routes, Route, Navigate } from 'react-router'
+import { Navigate, Route, Routes } from 'react-router'
+import { useAuth } from '@clerk/react'
+import { AppShell } from '@/layout/app-shell'
+import { CompostBatchesPage } from '@/components/compost-batches/compost-batches-page'
+import { DashboardPage } from '@/components/dashboard/dashboard-page'
+import { MachinesPage } from '@/components/machines/machines-page'
+import { OperatorsPage } from '@/components/operator-accounts/operators-page'
+import { SystemHealthPage } from '@/components/system-health/system-health-page'
 import { SignInPage } from '@/routes/auth/sign-in'
-import { AdminDashboard } from '@/routes/admin'
-import { AppShell } from '@/components/layout/app-shell'
-import { RoleGuard } from '@/components/layout/role-guard'
-import { useAuthContext } from '@/context/auth-context'
 
-function IndexRedirect() {
-  const { isLoaded, isSignedIn, role } = useAuthContext()
+const adminRoutes = [
+  { path: '/admin', element: <DashboardPage /> },
+  { path: '/admin/operators', element: <OperatorsPage /> },
+  { path: '/admin/machines', element: <MachinesPage /> },
+  { path: '/admin/compost-batches', element: <CompostBatchesPage /> },
+  { path: '/admin/system-health', element: <SystemHealthPage /> },
+]
 
-  if (!isLoaded) return null
-  if (!isSignedIn) return <Navigate to="/sign-in" replace />
-  if (role === 'admin') return <Navigate to="/admin" replace />
-  return <Navigate to="/admin" replace />
+const publicRoutes = [{ path: '/sign-in/*', element: <SignInPage /> }]
+
+const fallbackRoutes = [
+  { path: '/', element: <Navigate to="/sign-in" replace /> },
+  { path: '*', element: <Navigate to="/sign-in" replace /> },
+]
+
+function AuthGuard() {
+  const { isLoaded, isSignedIn } = useAuth()
+
+  if (!isLoaded) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-background">
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+      </div>
+    )
+  }
+
+  if (!isSignedIn) {
+    return <Navigate to="/sign-in" replace />
+  }
+
+  return <AppShell>{null}</AppShell>
 }
 
 export function App() {
   return (
     <Routes>
-      {/* Public Auth Routes */}
-      <Route path="/sign-in/*" element={<SignInPage />} />
+      {publicRoutes.map(({ path, element }) => (
+        <Route key={path} path={path} element={element} />
+      ))}
 
-      {/* Protected Admin Routes */}
-      <Route element={<RoleGuard allowedRoles={['admin']} />}>
-        <Route
-          path="/admin"
-          element={
-            <AppShell>
-              <AdminDashboard />
-            </AppShell>
-          }
-        />
+      <Route element={<AuthGuard />}>
+        {adminRoutes.map(({ path, element }) => (
+          <Route key={path} path={path} element={element} />
+        ))}
       </Route>
 
-      {/* Root & Catch-all Fallbacks */}
-      <Route path="/" element={<IndexRedirect />} />
-      <Route path="*" element={<IndexRedirect />} />
+      {fallbackRoutes.map(({ path, element }) => (
+        <Route key={path} path={path} element={element} />
+      ))}
     </Routes>
   )
 }

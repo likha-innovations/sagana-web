@@ -5,11 +5,18 @@ import { Navigate, useNavigate } from 'react-router'
 import { toast } from 'sonner'
 import { useAuthContext } from '@/context/auth-context'
 import { signInSchema, type SignInInput } from '@/types/auth'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { Button } from '@/components/ui/button'
-import { Mail, Lock, Eye, EyeOff, Loader2, ShieldCheck, ArrowRight } from 'lucide-react'
+import { Loader2 } from 'lucide-react'
+import saganaLogo from '@/assets/sagana-logo.png'
+
+function SaganaLogo({ className = '' }: { className?: string }) {
+  return (
+    <img
+      src={saganaLogo}
+      alt="SAGANA"
+      className={`w-60 h-auto brightness-0 invert ${className}`}
+    />
+  )
+}
 
 export function SignInPage() {
   const navigate = useNavigate()
@@ -17,6 +24,7 @@ export function SignInPage() {
   const [showPassword, setShowPassword] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [authError, setAuthError] = useState<string | null>(null)
+  const [keepSignedIn, setKeepSignedIn] = useState(false)
 
   const {
     register,
@@ -30,7 +38,7 @@ export function SignInPage() {
     },
   })
 
-  // If already signed in, redirect to admin
+  // If already signed in, redirect to dashboard
   if (isLoaded && isSignedIn) {
     return <Navigate to="/admin" replace />
   }
@@ -62,108 +70,137 @@ export function SignInPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background p-4">
-      <Card className="w-full max-w-md shadow-lg border-border bg-card">
-        <CardHeader className="text-center space-y-2 pb-6">
-          <div className="mx-auto h-12 w-12 rounded-xl bg-primary flex items-center justify-center text-primary-foreground shadow">
-            <ShieldCheck className="h-6 w-6" />
-          </div>
-          <div>
-            <CardTitle className="text-2xl font-bold tracking-tight text-foreground">
-              Sagana Web
-            </CardTitle>
-            <p className="text-xs text-muted-foreground uppercase font-mono tracking-wider mt-0.5">
-              Admin Console
-            </p>
-          </div>
-          <CardDescription className="text-sm">
-            Sign in with your authorized admin account to manage the platform.
-          </CardDescription>
-        </CardHeader>
+    <div className="h-screen w-screen overflow-hidden flex flex-col lg:grid lg:grid-cols-2">
+      {/* ── Left Panel: Green branding ── */}
+      <div className="relative shrink-0 lg:shrink lg:block" style={{ background: 'linear-gradient(to bottom, #C9E752, #518251)' }}>
+        {/* Mobile: compact header strip */}
+        <div className="p-6 sm:p-8 lg:p-16">
+          <SaganaLogo />
+        </div>
+      </div>
 
-        <CardContent>
+      {/* ── Right Panel: Login form ── */}
+      <div className="bg-[#F7F6F0] flex-1 flex items-center justify-center p-5 sm:p-6 overflow-y-auto">
+        <div
+          id="login-card"
+          className="w-full max-w-110 bg-[#FDFCF7] rounded-3xl p-8 sm:p-10 shadow-xl"
+        >
+          {/* Header */}
+          <h1 className="text-[#414141] font-bold text-[28px] leading-[120%] tracking-[-0.02em]">
+            Welcome back
+          </h1>
+          <p className="text-[#717171] text-sm mt-1">
+            Sign in to the SAGANA Admin Web Dashboard.
+          </p>
+
+          {/* Auth error banner */}
           {authError && (
-            <div className="mb-5 rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-xs text-destructive">
+            <div className="mt-5 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
               {authError}
             </div>
           )}
 
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+          {/* Form */}
+          <form
+            onSubmit={handleSubmit(onSubmit)}
+            className="mt-8 space-y-5"
+            noValidate
+          >
+            {/* Email */}
             <div className="space-y-1.5">
-              <Label htmlFor="email" className="text-xs sm:text-sm font-medium">
-                Email Address
-              </Label>
-              <div className="relative">
-                <Mail className="absolute left-3 top-3.5 h-4 w-4 text-muted-foreground" />
-                <Input
-                  id="email"
-                  type="email"
-                  placeholder="admin@sagana.ph"
-                  className="pl-9 h-11 min-h-[44px] text-sm"
-                  disabled={isSubmitting}
-                  {...register('email')}
-                />
-              </div>
+              <label htmlFor="sign-in-email" className="sr-only">
+                Email address
+              </label>
+              <input
+                id="sign-in-email"
+                type="email"
+                placeholder="Email address"
+                autoComplete="email"
+                disabled={isSubmitting}
+                className="w-full h-12 min-h-11 bg-[#FDFCF7] border border-[#E5E3D9] rounded-xl px-4 text-sm text-[#414141] placeholder-[#A0A0A0] outline-none transition-all focus:ring-0 focus:border-[#E5E3D9] disabled:opacity-50 disabled:cursor-not-allowed"
+                {...register('email')}
+              />
               {errors.email && (
-                <p className="text-xs text-destructive">{errors.email.message}</p>
+                <p className="text-xs text-red-600 pl-1">{errors.email.message}</p>
               )}
             </div>
 
+            {/* Password */}
             <div className="space-y-1.5">
-              <Label htmlFor="password" className="text-xs sm:text-sm font-medium">
+              <label htmlFor="sign-in-password" className="sr-only">
                 Password
-              </Label>
+              </label>
               <div className="relative">
-                <Lock className="absolute left-3 top-3.5 h-4 w-4 text-muted-foreground" />
-                <Input
-                  id="password"
+                <input
+                  id="sign-in-password"
                   type={showPassword ? 'text' : 'password'}
-                  placeholder="Enter your password"
-                  className="pl-9 pr-11 h-11 min-h-[44px] text-sm"
+                  placeholder="Password"
+                  autoComplete="current-password"
                   disabled={isSubmitting}
+                  className="w-full h-12 min-h-11 bg-[#FDFCF7] border border-[#E5E3D9] rounded-xl px-4 pr-12 text-sm text-[#414141] placeholder-[#A0A0A0] outline-none transition-all focus:ring-2 focus:ring-[#718619]/40 focus:border-[#718619] disabled:opacity-50 disabled:cursor-not-allowed"
                   {...register('password')}
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-0 top-0 h-11 w-11 min-h-[44px] min-w-[44px] flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
+                  className="absolute right-0 top-0 h-12 w-12 min-h-11 min-w-11 flex items-center justify-center text-[#A0A0A0] hover:text-[#555] transition-colors"
                   aria-label={showPassword ? 'Hide password' : 'Show password'}
                 >
                   {showPassword ? (
-                    <EyeOff className="h-4 w-4" />
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" /><line x1="1" y1="1" x2="23" y2="23" /></svg>
                   ) : (
-                    <Eye className="h-4 w-4" />
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" /><circle cx="12" cy="12" r="3" /></svg>
                   )}
                 </button>
               </div>
               {errors.password && (
-                <p className="text-xs text-destructive">{errors.password.message}</p>
+                <p className="text-xs text-red-600 pl-1">{errors.password.message}</p>
               )}
             </div>
 
-            <Button
+            {/* Options row */}
+            <div className="flex justify-between items-center text-sm mt-4">
+              <label
+                htmlFor="keep-signed-in"
+                className="flex items-center gap-2.5 cursor-pointer select-none"
+              >
+                <input
+                  id="keep-signed-in"
+                  type="checkbox"
+                  checked={keepSignedIn}
+                  onChange={(e) => setKeepSignedIn(e.target.checked)}
+                  className="appearance-none h-5 w-5 min-h-5 min-w-5 rounded-lg border border-[#E5E3D9] bg-white checked:bg-[#718619] checked:border-[#718619] cursor-pointer transition-colors relative after:content-[''] after:absolute after:left-1.5 after:top-0.5 after:w-1.5 after:h-2.5 after:border-white after:border-r-2 after:border-b-2 after:rotate-45 after:opacity-0 checked:after:opacity-100"
+                />
+                <span className="text-[#555]">Keep me signed in</span>
+              </label>
+
+              <button
+                type="button"
+                className="text-[#718619] font-semibold hover:underline transition-colors min-h-11 flex items-center"
+              >
+                Forgot password?
+              </button>
+            </div>
+
+            {/* Submit */}
+            <button
+              id="sign-in-submit"
               type="submit"
-              className="w-full gap-2 mt-2 h-11 min-h-[44px] text-sm"
               disabled={isSubmitting || !isLoaded}
+              className="w-full h-12 min-h-11 bg-[#718619] hover:bg-[#627920] active:bg-[#566d1b] text-white font-semibold rounded-full mt-6 transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
             >
               {isSubmitting ? (
                 <>
                   <Loader2 className="h-4 w-4 animate-spin" />
-                  Authenticating...
+                  Signing in...
                 </>
               ) : (
-                <>
-                  Sign In <ArrowRight className="h-4 w-4" />
-                </>
+                'Sign in'
               )}
-            </Button>
+            </button>
           </form>
-
-          <div className="mt-6 pt-4 border-t border-border text-center text-xs text-muted-foreground">
-            <span>Authorized personnel only. Contact system lead for account access.</span>
-          </div>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
     </div>
   )
 }

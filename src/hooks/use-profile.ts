@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { userApi } from '@/api/user.api'
-import type { UpdateProfileInput, User } from '@/types'
+import type { UpdateProfileInput, User } from '@/types/auth'
 import { createLogger } from '@/lib/logger'
 
 const logger = createLogger('useProfile')
