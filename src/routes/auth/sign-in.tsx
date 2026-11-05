@@ -1,11 +1,8 @@
-import { useState } from 'react'
-import { useForm } from 'react-hook-form'
-import { zodResolver } from '@hookform/resolvers/zod'
-import { Navigate, useNavigate } from 'react-router'
+import { useState, type FormEvent } from 'react'
+import { Link, Navigate, useNavigate, useSearchParams } from 'react-router'
 import { toast } from 'sonner'
 import { useAuthContext } from '@/context/auth-context'
-import { signInSchema, type SignInInput } from '@/types/auth'
-import { Loader2 } from 'lucide-react'
+import { AlertCircle, Eye, EyeOff, Loader2 } from 'lucide-react'
 import saganaLogo from '@/assets/sagana-logo.png'
 
 function SaganaLogo({ className = '' }: { className?: string }) {
@@ -18,62 +15,128 @@ function SaganaLogo({ className = '' }: { className?: string }) {
   )
 }
 
+// Same red as the inline error message. Applied as an inline style so a global
+// border-color rule in the stylesheet can't override it.
+const ERROR_RED = '#D92D20'
+
 export function SignInPage() {
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
   const { signIn, isLoaded, isSignedIn } = useAuthContext()
+
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const [authError, setAuthError] = useState<string | null>(null)
   const [keepSignedIn, setKeepSignedIn] = useState(false)
 
-  const {
-    register,
-    handleSubmit,
-    formState: { errors },
-  } = useForm<SignInInput>({
-    resolver: zodResolver(signInSchema),
-    defaultValues: {
-      email: '',
-      password: '',
-    },
+  // Initialize failed attempts counter from sessionStorage
+  const [failedAttempts, setFailedAttempts] = useState<number>(() => {
+    try {
+      const stored = sessionStorage.getItem('sagana_failed_sign_in_attempts')
+      return stored ? parseInt(stored, 10) || 0 : 0
+    } catch {
+      return 0
+    }
   })
 
-  // If already signed in, redirect to dashboard
+  // Check URL error parameter (e.g. redirected from guard when unauthorized)
+  const initialError = searchParams.get('error') === 'unauthorized' ? 'Incorrect credentials, try again' : null
+  const [errorMessage, setErrorMessage] = useState<string | null>(initialError)
+  const [hasError, setHasError] = useState<boolean>(Boolean(initialError))
+
+  // If already signed in, redirect to dashboard (AC3)
   if (isLoaded && isSignedIn) {
     return <Navigate to="/admin" replace />
   }
 
-  const onSubmit = async (values: SignInInput) => {
+  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault()
+
+    // AC6: Block attempt if already 5 consecutive failed attempts
+    if (failedAttempts >= 5) {
+      const msg = 'Too many failed attempts, you may try again later'
+      setErrorMessage(msg)
+      setHasError(true)
+      toast.error(msg)
+      return
+    }
+
+    // AC5: Empty email or password field validation
+    if (!email.trim() || !password) {
+      const msg = 'Please enter your credentials'
+      setErrorMessage(msg)
+      setHasError(true)
+      toast.error(msg)
+      return
+    }
+
     setIsSubmitting(true)
-    setAuthError(null)
+    setErrorMessage(null)
+    setHasError(false)
 
     try {
-      await signIn(values.email, values.password)
+      await signIn(email.trim(), password, keepSignedIn)
+      try {
+        sessionStorage.removeItem('sagana_failed_sign_in_attempts')
+      } catch {
+        // Ignore storage exceptions
+      }
+      setFailedAttempts(0)
       toast.success('Signed in successfully.')
       navigate('/admin')
     } catch (err: unknown) {
-      const errorObj = err as {
-        errors?: Array<{ message?: string; longMessage?: string }>
-        message?: string
+      const nextCount = failedAttempts + 1
+      setFailedAttempts(nextCount)
+      try {
+        sessionStorage.setItem('sagana_failed_sign_in_attempts', String(nextCount))
+      } catch {
+        // Ignore storage exceptions
       }
-      const message =
-        errorObj.errors?.[0]?.longMessage ||
-        errorObj.errors?.[0]?.message ||
-        errorObj.message ||
-        'Unable to sign in. Please verify your credentials.'
+      setHasError(true)
 
-      setAuthError(message)
-      toast.error(message)
+      // AC6: After 5 failed attempts
+      if (nextCount >= 5) {
+        const msg = 'Too many failed attempts, you may try again later'
+        setErrorMessage(msg)
+        toast.error(msg)
+        return
+      }
+
+      const rawMessage = (err as Error)?.message || ''
+      if (/too many/i.test(rawMessage)) {
+        const msg = 'Too many failed attempts, you may try again later'
+        setErrorMessage(msg)
+        toast.error(msg)
+      } else {
+        // AC4 & AC7: Incorrect credentials, try again
+        const msg = 'Incorrect credentials, try again'
+        setErrorMessage(msg)
+        toast.error(msg)
+      }
     } finally {
       setIsSubmitting(false)
     }
   }
 
+  const emailInputClassName = hasError
+    ? 'border-2 border-red-500 placeholder:text-red-400 text-red-600 focus:border-red-500 focus:ring-1 focus:ring-red-500/20'
+    : 'border border-[#E5E3D9] placeholder-[#A0A0A0] text-[#414141] focus:border-[#414141] focus:ring-2 focus:ring-[#414141]/15'
+
+  const passwordInputClassName = hasError
+    ? 'border-2 border-red-500 placeholder:text-red-400 text-red-600 focus:border-red-500 focus:ring-1 focus:ring-red-500/20'
+    : 'border border-[#E5E3D9] placeholder-[#A0A0A0] text-[#414141] focus:border-[#414141] focus:ring-2 focus:ring-[#414141]/15'
+
+  // Inline style guarantees the red border wins over any global CSS rule
+  const errorBorderStyle = hasError ? { borderColor: ERROR_RED } : undefined
+
   return (
     <div className="h-screen w-screen overflow-hidden flex flex-col lg:grid lg:grid-cols-2">
       {/* ── Left Panel: Green branding ── */}
-      <div className="relative shrink-0 lg:shrink lg:block" style={{ background: 'linear-gradient(to bottom, #C9E752, #518251)' }}>
-        {/* Mobile: compact header strip */}
+      <div
+        className="relative shrink-0 lg:shrink lg:block"
+        style={{ background: 'linear-gradient(to bottom, #C9E752, #518251)' }}
+      >
         <div className="p-6 sm:p-8 lg:p-16">
           <SaganaLogo />
         </div>
@@ -85,47 +148,54 @@ export function SignInPage() {
           id="login-card"
           className="w-full max-w-110 bg-[#FDFCF7] rounded-3xl p-8 sm:p-10 shadow-xl"
         >
-          {/* Header */}
-          <h1 className="text-[#414141] font-bold text-[28px] leading-[120%] tracking-[-0.02em]">
+          {/* Header (AC1) */}
+          <h1 className="text-[#414141] font-bold text-[29px] leading-[120%] tracking-[-0.02em]">
             Welcome back
           </h1>
           <p className="text-[#717171] text-sm mt-1">
             Sign in to the SAGANA Admin Web Dashboard.
           </p>
 
-          {/* Auth error banner */}
-          {authError && (
-            <div className="mt-5 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-              {authError}
-            </div>
-          )}
 
           {/* Form */}
           <form
-            onSubmit={handleSubmit(onSubmit)}
-            className="mt-8 space-y-5"
+            onSubmit={handleSubmit}
+            className="mt-6 space-y-5"
             noValidate
           >
-            {/* Email */}
+            {/* Email (AC1, AC2, AC4, AC5) */}
             <div className="space-y-1.5">
               <label htmlFor="sign-in-email" className="sr-only">
                 Email address
               </label>
-              <input
-                id="sign-in-email"
-                type="email"
-                placeholder="Email address"
-                autoComplete="email"
-                disabled={isSubmitting}
-                className="w-full h-12 min-h-11 bg-[#FDFCF7] border border-[#E5E3D9] rounded-xl px-4 text-sm text-[#414141] placeholder-[#A0A0A0] outline-none transition-all focus:ring-0 focus:border-[#E5E3D9] disabled:opacity-50 disabled:cursor-not-allowed"
-                {...register('email')}
-              />
-              {errors.email && (
-                <p className="text-xs text-red-600 pl-1">{errors.email.message}</p>
-              )}
+              <div className="relative">
+                <input
+                  id="sign-in-email"
+                  type="email"
+                  value={email}
+                  onChange={(e) => {
+                    setEmail(e.target.value)
+                    if (hasError) {
+                      setHasError(false)
+                      setErrorMessage(null)
+                    }
+                  }}
+                  placeholder="Email address"
+                  autoComplete="email"
+                  disabled={isSubmitting}
+                  aria-invalid={hasError}
+                  style={errorBorderStyle}
+                  className={`w-full h-12 min-h-11 bg-[#FDFCF7] rounded-xl px-4 pr-11 text-sm outline-none transition-all disabled:opacity-50 disabled:cursor-not-allowed ${emailInputClassName}`}
+                />
+                {hasError && (
+                  <span className="absolute right-3.5 top-1/2 -translate-y-1/2 text-red-500 pointer-events-none">
+                    <AlertCircle className="w-5 h-5" />
+                  </span>
+                )}
+              </div>
             </div>
 
-            {/* Password */}
+            {/* Password (AC1, AC2, AC4, AC5) */}
             <div className="space-y-1.5">
               <label htmlFor="sign-in-password" className="sr-only">
                 Password
@@ -134,32 +204,65 @@ export function SignInPage() {
                 <input
                   id="sign-in-password"
                   type={showPassword ? 'text' : 'password'}
+                  value={password}
+                  onChange={(e) => {
+                    setPassword(e.target.value)
+                    if (hasError) {
+                      setHasError(false)
+                      setErrorMessage(null)
+                    }
+                  }}
                   placeholder="Password"
                   autoComplete="current-password"
                   disabled={isSubmitting}
-                  className="w-full h-12 min-h-11 bg-[#FDFCF7] border border-[#E5E3D9] rounded-xl px-4 pr-12 text-sm text-[#414141] placeholder-[#A0A0A0] outline-none transition-all focus:ring-2 focus:ring-[#718619]/40 focus:border-[#718619] disabled:opacity-50 disabled:cursor-not-allowed"
-                  {...register('password')}
+                  aria-invalid={hasError}
+                  aria-describedby={hasError ? 'login-error' : undefined}
+                  style={errorBorderStyle}
+                  className={`w-full h-12 min-h-11 bg-[#FDFCF7] rounded-xl px-4 pr-20 text-sm outline-none transition-all disabled:opacity-50 disabled:cursor-not-allowed ${passwordInputClassName}`}
                 />
+                {hasError && (
+                  <span className="absolute right-11 top-1/2 -translate-y-1/2 text-red-500 pointer-events-none">
+                    <AlertCircle className="w-5 h-5" />
+                  </span>
+                )}
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-0 top-0 h-12 w-12 min-h-11 min-w-11 flex items-center justify-center text-[#A0A0A0] hover:text-[#555] transition-colors"
+                  className={`absolute right-0 top-0 h-12 w-11 min-h-11 flex items-center justify-center transition-colors cursor-pointer ${hasError ? 'text-red-500 hover:text-red-600' : 'text-[#A0A0A0] hover:text-[#555]'
+                    }`}
                   aria-label={showPassword ? 'Hide password' : 'Show password'}
                 >
                   {showPassword ? (
-                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" /><line x1="1" y1="1" x2="23" y2="23" /></svg>
+                    <EyeOff className="w-4.5 h-4.5" />
                   ) : (
-                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" /><circle cx="12" cy="12" r="3" /></svg>
+                    <Eye className="w-4.5 h-4.5" />
                   )}
                 </button>
               </div>
-              {errors.password && (
-                <p className="text-xs text-red-600 pl-1">{errors.password.message}</p>
-              )}
             </div>
 
-            {/* Options row */}
-            <div className="flex justify-between items-center text-sm mt-4">
+            {/* Inline error message below password (AC4, AC5, AC6, AC7) */}
+            {errorMessage && (
+              <div
+                id="login-error"
+                role="alert"
+                className="flex items-center gap-1.5"
+                style={{
+                  paddingLeft: 4,
+                  marginTop: -14,
+                  fontSize: 14,
+                  fontWeight: 600,
+                  lineHeight: 1.35,
+                  color: ERROR_RED,
+                }}
+              >
+                <AlertCircle className="shrink-0" style={{ width: '1.15em', height: '1.15em' }} />
+                <span>{errorMessage}</span>
+              </div>
+            )}
+
+            {/* Options row: Keep me signed in & Forgot password link (AC1, AC8, AC9, AC10) */}
+            <div className="flex justify-between items-center text-sm pt-1">
               <label
                 htmlFor="keep-signed-in"
                 className="flex items-center gap-2.5 cursor-pointer select-none"
@@ -174,15 +277,15 @@ export function SignInPage() {
                 <span className="text-[#555]">Keep me signed in</span>
               </label>
 
-              <button
-                type="button"
-                className="text-[#718619] font-semibold hover:underline transition-colors min-h-11 flex items-center"
+              <Link
+                to={email.trim() ? `/forgot-password?email=${encodeURIComponent(email.trim())}` : '/forgot-password'}
+                className="text-[#718619] font-semibold hover:underline transition-colors min-h-11 flex items-center cursor-pointer"
               >
                 Forgot password?
-              </button>
+              </Link>
             </div>
 
-            {/* Submit */}
+            {/* Submit Button (AC1, AC3) */}
             <button
               id="sign-in-submit"
               type="submit"
@@ -204,3 +307,5 @@ export function SignInPage() {
     </div>
   )
 }
+
+export default SignInPage

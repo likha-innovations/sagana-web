@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect, useCallback, useMemo, type ReactNode } from 'react'
-import { useAuth, useUser } from '@clerk/react'
+import { useAuth, useUser, useClerk } from '@clerk/react'
 import { useSignIn, useSignUp } from '@clerk/react/legacy'
 import {
   type User,
@@ -20,7 +20,7 @@ interface AuthContextType {
   user: User | null
   role: UserRole
   getToken: () => Promise<string | null>
-  signIn: (email: string, password: string) => Promise<void>
+  signIn: (email: string, password: string, keepSignedIn?: boolean) => Promise<void>
   signUp: (params: SignUpInput) => Promise<void>
   signOut: () => Promise<void>
 }
@@ -28,6 +28,7 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | null>(null)
 
 export function AuthProvider({ children }: { children: ReactNode }) {
+  const clerk = useClerk()
   const { isSignedIn, isLoaded: authLoaded, signOut: clerkSignOut, getToken } = useAuth()
   const { user: clerkUser, isLoaded: userLoaded } = useUser()
   const { signIn: clerkSignIn, setActive: setSignInActive, isLoaded: signInLoaded } = useSignIn()
@@ -36,6 +37,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isActionLoading, setIsActionLoading] = useState(false)
   const [dbUser, setDbUser] = useState<User | null>(null)
   const [isProfileFetched, setIsProfileFetched] = useState(false)
+
+  // Enforce session termination on browser close when "Keep me signed in" is unchecked (AC8 & AC9)
+  useEffect(() => {
+    if (!authLoaded || !isSignedIn) {
+      return
+    }
+
+    const keepSignedInStored = localStorage.getItem('sagana_keep_signed_in') === 'true'
+    const sessionActiveStored = sessionStorage.getItem('sagana_session_active') === 'true'
+
+    if (!keepSignedInStored && !sessionActiveStored) {
+      logger.info('Session ended because Keep me signed in was not active and browser closed')
+      void clerkSignOut().then(() => {
+        setDbUser(null)
+        localStorage.removeItem('sagana_keep_signed_in')
+        sessionStorage.removeItem('sagana_session_active')
+      })
+    }
+  }, [authLoaded, isSignedIn, clerkSignOut])
 
   // Automatically wire Clerk's active JWT getter into native apiFetch
   useEffect(() => {
@@ -99,7 +119,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const role: UserRole = user?.role || 'operator'
 
   const signIn = useCallback(
-    async (email: string, password: string) => {
+    async (email: string, password: string, keepSignedIn = false) => {
       logger.info(`Initiating custom sign in for ${email}`)
       setIsActionLoading(true)
 
@@ -125,7 +145,50 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         if (attempt.status === 'complete') {
           logger.info(`Sign in complete for ${email}`)
+
+          // Set storage flags BEFORE activating the session so the
+          // session-enforcement useEffect sees them when isSignedIn flips.
+          if (keepSignedIn) {
+            localStorage.setItem('sagana_keep_signed_in', 'true')
+            sessionStorage.removeItem('sagana_session_active')
+          } else {
+            localStorage.removeItem('sagana_keep_signed_in')
+            sessionStorage.setItem('sagana_session_active', 'true')
+          }
+
           await setSignInActive({ session: attempt.createdSessionId })
+
+          // Verify admin role requirement (AC7)
+          let verifiedRole: string | null = null
+
+          try {
+            setAuthTokenGetter(getToken)
+            const profile = await userApi.getProfile()
+            if (profile) {
+              setDbUser(profile)
+              verifiedRole = profile.role
+            }
+          } catch (profileErr) {
+            logger.warn('Failed to fetch DB user profile from /me during sign in', profileErr)
+          }
+
+          if (!verifiedRole) {
+            const session = clerk.client?.sessions?.find((s) => s.id === attempt.createdSessionId)
+            const sessionUser = session?.user || clerk.user
+            const publicMeta = (sessionUser?.publicMetadata || {}) as Record<string, unknown>
+            const unsafeMeta = (sessionUser?.unsafeMetadata || {}) as Record<string, unknown>
+            verifiedRole = (publicMeta.role || unsafeMeta.role) as string | null
+          }
+
+          if (verifiedRole && verifiedRole !== 'admin') {
+            logger.warn(`User ${email} has role '${verifiedRole}', not 'admin'. Rejecting sign-in.`)
+            await clerkSignOut()
+            setDbUser(null)
+            localStorage.removeItem('sagana_keep_signed_in')
+            sessionStorage.removeItem('sagana_session_active')
+            throw new Error('Incorrect credentials, try again')
+          }
+
           return
         }
 
@@ -140,7 +203,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setIsActionLoading(false)
       }
     },
-    [clerkSignIn, setSignInActive]
+    [clerkSignIn, setSignInActive, clerk, getToken, clerkSignOut]
   )
 
   const signUp = useCallback(
@@ -185,6 +248,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signOut = useCallback(async () => {
     logger.info('Signing out active user session')
     try {
+      localStorage.removeItem('sagana_keep_signed_in')
+      sessionStorage.removeItem('sagana_session_active')
       await clerkSignOut()
       setDbUser(null)
     } catch (err) {

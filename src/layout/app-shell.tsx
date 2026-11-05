@@ -1,16 +1,16 @@
 import { useState, type ReactNode } from 'react'
 import { Link, Outlet, useLocation } from 'react-router'
-import { Activity, Cpu, Layers, LayoutDashboard, LogOut, Menu, Users, X } from 'lucide-react'
+import { ChevronUp, Cpu, Layers, LayoutDashboard, LogOut, Menu, Settings, Users, X } from 'lucide-react'
 import saganaLogo from '@/assets/sagana-logo.png'
 import { useAuthContext } from '@/context/auth-context'
 import { Button } from '@/ui/button'
+import { SettingsModal } from '@/components/settings/settings-modal'
 
 const navLinks = [
   { to: '/admin', label: 'Dashboard', icon: LayoutDashboard, end: true },
-  { to: '/admin/operators', label: 'Operator Accounts', icon: Users },
+  { to: '/admin/operator-accounts', label: 'Operator Accounts', icon: Users },
   { to: '/admin/machines', label: 'Machines', icon: Cpu },
   { to: '/admin/compost-batches', label: 'Compost Batches', icon: Layers },
-  { to: '/admin/system-health', label: 'System health', icon: Activity },
 ]
 
 function getUserInitials(fullName?: string | null) {
@@ -18,6 +18,7 @@ function getUserInitials(fullName?: string | null) {
 
   return fullName
     .split(' ')
+    .filter(Boolean)
     .map((name) => name[0])
     .slice(0, 2)
     .join('')
@@ -37,8 +38,13 @@ export function AppShell({ children }: { children: ReactNode }) {
   const { user, role, signOut } = useAuthContext()
   const location = useLocation()
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false)
+  const [profileMenuOpen, setProfileMenuOpen] = useState(false)
+  const [settingsModalOpen, setSettingsModalOpen] = useState(false)
 
-  const closeSidebar = () => setMobileSidebarOpen(false)
+  const closeSidebar = () => {
+    setMobileSidebarOpen(false)
+    setProfileMenuOpen(false)
+  }
   const currentPath = location.pathname
   const userInitials = getUserInitials(user?.fullName)
   const displayName = user?.fullName || 'Administrator'
@@ -65,9 +71,8 @@ export function AppShell({ children }: { children: ReactNode }) {
                 className={getNavLinkClasses(isActive)}
               >
                 <span
-                  className={`flex h-8.5 w-8.5 shrink-0 items-center justify-center rounded-[10px] ${
-                    isActive ? 'bg-primary text-primary-foreground' : ''
-                  }`}
+                  className={`flex h-8.5 w-8.5 shrink-0 items-center justify-center rounded-[10px] ${isActive ? 'bg-primary text-primary-foreground' : ''
+                    }`}
                 >
                   <Icon className="h-4.5 w-4.5" strokeWidth={2} />
                 </span>
@@ -78,24 +83,83 @@ export function AppShell({ children }: { children: ReactNode }) {
         </nav>
       </div>
 
-      <div className="flex items-center gap-3 rounded-[20px] bg-[#FDFCF7] p-3 shadow-[0_8px_24px_rgba(65,65,65,0.08)]">
-        <div className="flex h-9.5 w-9.5 shrink-0 items-center justify-center rounded-full bg-linear-to-b from-[#C9E752] to-positive text-xs font-bold text-white">
-          {userInitials}
-        </div>
-        <div className="min-w-0 flex-1">
-          <p className="truncate text-[13px] font-bold leading-[1.3] text-[#414141]">{displayName}</p>
-          <p className="text-[11px] capitalize leading-[1.4] text-[#566811]">{role}</p>
-        </div>
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={() => void signOut()}
-          className="h-8 w-8 shrink-0 rounded-lg text-muted-foreground hover:bg-secondary hover:text-destructive"
-          title="Sign out"
-          aria-label="Sign out"
+      <div className="relative">
+        {/* Backdrop for closing popover when clicking outside */}
+        {profileMenuOpen && (
+          <div
+            className="fixed inset-0 z-30"
+            onClick={() => setProfileMenuOpen(false)}
+            aria-hidden="true"
+          />
+        )}
+
+        {/* ChatGPT-style floating popup menu */}
+        {profileMenuOpen && (
+          <div
+            className="absolute bottom-[calc(100%+8px)] left-0 right-0 z-40 rounded-2xl bg-[#FDFCF7] p-1.5 shadow-[0_12px_32px_rgba(65,65,65,0.14)] border border-[#DCDBD5] animate-in fade-in zoom-in-95 duration-150"
+            role="menu"
+            aria-orientation="vertical"
+          >
+            <button
+              type="button"
+              role="menuitem"
+              onClick={() => {
+                setProfileMenuOpen(false)
+                closeSidebar()
+                setSettingsModalOpen(true)
+              }}
+              className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-xs font-medium text-[#414141] hover:bg-[#FAF9F4] transition-colors cursor-pointer text-left"
+            >
+              <Settings className="h-4 w-4 text-[#7C7D74]" />
+              <span>Settings</span>
+            </button>
+
+            <button
+              type="button"
+              role="menuitem"
+              onClick={() => {
+                setProfileMenuOpen(false)
+                closeSidebar()
+                void signOut()
+              }}
+              className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-xs font-medium text-[#C53030] hover:bg-[#FDF2F0] transition-colors cursor-pointer text-left"
+            >
+              <LogOut className="h-4 w-4 text-[#C53030]" />
+              <span>Log out</span>
+            </button>
+          </div>
+        )}
+
+        {/* Profile Pill */}
+        <div
+          role="button"
+          tabIndex={0}
+          onClick={() => setProfileMenuOpen((prev) => !prev)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              setProfileMenuOpen((prev) => !prev)
+            }
+          }}
+          className={`flex items-center gap-3 rounded-[20px] bg-[#FDFCF7] p-3 shadow-[0_8px_24px_rgba(65,65,65,0.08)] cursor-pointer border transition-all select-none hover:bg-[#FAF9F0] ${
+            profileMenuOpen ? 'border-[#DCDBD5] bg-[#FAF9F0]' : 'border-transparent'
+          }`}
+          title="Account menu"
+          aria-haspopup="true"
+          aria-expanded={profileMenuOpen}
         >
-          <LogOut className="h-4 w-4" />
-        </Button>
+          <div className="flex h-9.5 w-9.5 shrink-0 items-center justify-center rounded-full bg-linear-to-b from-[#C9E752] to-positive text-xs font-bold text-white">
+            {userInitials}
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-[14px] font-bold leading-[1.3] text-[#414141]">{displayName}</p>
+            <p className="text-[12px] capitalize leading-[1.4] text-[#566811]">{role}</p>
+          </div>
+          <ChevronUp
+            className={`h-4 w-4 text-[#7C7D74] transition-transform duration-200 ${
+              profileMenuOpen ? 'rotate-180' : ''
+            }`}
+          />
+        </div>
       </div>
     </div>
   )
@@ -151,11 +215,18 @@ export function AppShell({ children }: { children: ReactNode }) {
       )}
 
       <div className="flex min-h-screen flex-col md:pl-64">
-        <main className="flex-1 w-full px-4 py-6 sm:px-6 md:pl-3 md:pr-9 md:py-8">
-          {children}
-          <Outlet />
+        <main className="flex-1 flex flex-col w-full px-4 pt-5 pb-6 sm:px-6 md:pl-3 md:pr-9 md:pt-5 md:pb-6">
+          <div key={currentPath} className="flex-1 flex flex-col animate-in fade-in duration-200">
+            {children}
+            <Outlet />
+          </div>
         </main>
       </div>
+
+      <SettingsModal
+        isOpen={settingsModalOpen}
+        onClose={() => setSettingsModalOpen(false)}
+      />
     </div>
   )
 }

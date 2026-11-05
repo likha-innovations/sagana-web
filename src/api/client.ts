@@ -10,6 +10,7 @@ export const API_BASE_URL =
 export interface FetchOptions extends RequestInit {
   token?: string | null
   withAuth?: boolean
+  _isRetry?: boolean
 }
 
 export async function apiFetch<T>(
@@ -50,6 +51,18 @@ export async function apiFetch<T>(
     const json = await response.json().catch(() => null)
 
     if (!response.ok) {
+      if (response.status === 401 && withAuth && !options._isRetry) {
+        logger.info(`[HTTP 401] Token expired or invalid. Attempting refresh for ${endpoint}`)
+        const freshToken = await getAuthToken({ skipCache: true })
+        if (freshToken) {
+          return apiFetch<T>(endpoint, {
+            ...options,
+            token: freshToken,
+            _isRetry: true,
+          })
+        }
+      }
+
       const errorData = json as ApiErrorResponse | null
       const message =
         errorData?.message ||

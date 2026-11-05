@@ -1,5 +1,3 @@
-import { useLayoutEffect, useRef, useState } from 'react'
-
 export type BatchRow = {
     id: string
     account: string
@@ -16,115 +14,102 @@ type RecentBatchesTableProps = {
 }
 
 const columns = [
-    { label: 'Batch ID', width: 'w-[11%]' },
-    { label: 'Account', width: 'w-[19%]' },
-    { label: 'Barangay', width: 'w-[19%]' },
-    { label: 'Machine', width: 'w-[12%]' },
-    { label: 'Feedstock weight', width: 'w-[11%]' },
-    { label: 'Days to stabilization', width: 'w-[12%]' },
-    { label: 'Completed', width: 'w-[16%]' },
+    { label: 'Batch ID', width: 'w-[19%]', align: 'text-left' },
+    { label: 'Account', width: 'w-[18%]', align: 'text-left' },
+    { label: 'Barangay', width: 'w-[14%]', align: 'text-left' },
+    { label: 'Machine', width: 'w-[18%]', align: 'text-left' },
+    { label: 'Feedstock weight', width: 'w-[11%]', align: 'text-left' },
+    { label: 'Days to stabilization', width: 'w-[11%]', align: 'text-left' },
+    { label: 'Completed', width: 'w-[9%]', align: 'text-right' },
 ] as const
 
-const ROW_H = 41
-
 export function RecentBatchesTable({ rows, totalThisMonth }: RecentBatchesTableProps) {
-    const bodyRef = useRef<HTMLDivElement>(null)
-    const headRef = useRef<HTMLTableSectionElement>(null)
-    const [visible, setVisible] = useState(rows.length)
-
-    useLayoutEffect(() => {
-        setVisible(rows.length)
-
-        const el = bodyRef.current
-        if (!el) return
-
-        const update = () => {
-            const headH = headRef.current?.offsetHeight ?? 0
-            const fit = Math.floor((el.clientHeight - headH + 2) / ROW_H)
-            setVisible(Math.max(1, Math.min(rows.length, fit)))
-        }
-
-        update()
-        const ro = new ResizeObserver(update)
-        ro.observe(el)
-        return () => ro.disconnect()
-    }, [rows.length])
-
-    const visibleRows = rows.slice(0, Math.max(0, visible))
-
     return (
-        <article className="flex h-full min-h-0 flex-col gap-4 overflow-hidden rounded-[20px] bg-page p-5 shadow-card">
-            <div className="flex shrink-0 items-start justify-between">
-                <div className="flex flex-col gap-1.5">
-                    <h2 className="text-base font-bold leading-none text-foreground">
-                        Recently completed batches
-                    </h2>
-                    <p className="text-[11px] font-medium leading-[1.4] text-foreground">
-                        Latest stabilization completions across pilot sites
-                    </p>
+        <article className="flex flex-1 flex-col justify-between rounded-[20px] bg-white p-5 shadow-card transition-all">
+            <div className="flex flex-col">
+                {/* Header */}
+                <div className="flex shrink-0 items-start justify-between pb-3">
+                    <div className="flex flex-col gap-1.5">
+                        <h2 className="text-base font-bold leading-none text-foreground">
+                            Recently completed batches
+                        </h2>
+                        <p className="text-[12px] font-medium leading-[1.4] text-foreground">
+                            Latest stabilization completions across pilot sites
+                        </p>
+                    </div>
+                    <span className="shrink-0 text-xs font-bold text-primary select-none cursor-default">
+                        View all batches →
+                    </span>
                 </div>
-                <a
-                    href="#"
-                    className="shrink-0 text-xs font-bold text-primary hover:underline"
-                >
-                    View all batches →
-                </a>
-            </div>
 
-            <div
-                ref={bodyRef}
-                className="min-h-0 flex-1 overflow-x-auto overflow-y-hidden"
-            >
-                <table className="w-full table-fixed text-left text-xs">
-                    <thead ref={headRef}>
-                        <tr className="border-b border-border">
-                            {columns.map((col) => (
-                                <th
-                                    key={col.label}
-                                    className={`${col.width} whitespace-nowrap pb-2.5 pr-4 font-bold text-foreground`}
-                                >
-                                    {col.label}
-                                </th>
-                            ))}
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {visibleRows.map((r) => (
-                            <tr
-                                key={r.id}
-                                className="border-b border-border last:border-0"
-                            >
-                                <td className="whitespace-nowrap py-3 pr-4 font-medium text-foreground">
-                                    {r.id}
-                                </td>
-                                <td className="whitespace-nowrap py-3 pr-4 font-medium text-foreground">
-                                    {r.account}
-                                </td>
-                                <td className="whitespace-nowrap py-3 pr-4 font-medium text-foreground">
-                                    {r.barangay}
-                                </td>
-                                <td className="whitespace-nowrap py-3 pr-4 font-medium text-foreground">
-                                    {r.machine}
-                                </td>
-                                <td className="whitespace-nowrap py-3 pr-4 font-medium text-foreground">
-                                    {r.weight}
-                                </td>
-                                <td className="whitespace-nowrap py-3 pr-4 font-medium text-foreground">
-                                    {r.days}
-                                </td>
-                                <td className="whitespace-nowrap py-3 font-medium text-foreground">
-                                    {r.completed}
-                                </td>
+                {/* Responsive Table */}
+                <div className="w-full overflow-x-auto">
+                    <table className="w-full min-w-[850px] table-fixed text-xs">
+                        <thead>
+                            <tr className="border-b border-border">
+                                {columns.map((col) => (
+                                    <th
+                                        key={col.label}
+                                        className={`${col.width} ${col.align} whitespace-nowrap pb-2.5 ${
+                                            col.align === 'text-right' ? 'pr-1' : 'pr-4'
+                                        } font-bold text-foreground`}
+                                    >
+                                        {col.label}
+                                    </th>
+                                ))}
                             </tr>
-                        ))}
-                    </tbody>
-                </table>
+                        </thead>
+                        <tbody>
+                            {rows.length === 0 ? (
+                                <tr>
+                                    <td
+                                        colSpan={7}
+                                        className="py-6 text-center text-xs text-muted-foreground"
+                                    >
+                                        No recently completed batches found.
+                                    </td>
+                                </tr>
+                            ) : (
+                                rows.map((r) => (
+                                    <tr
+                                        key={r.id}
+                                        className="border-b border-border last:border-0 hover:bg-[#FAF9F5]/80 transition-colors"
+                                    >
+                                        <td className="whitespace-nowrap py-3 pr-4 font-medium text-foreground truncate">
+                                            {r.id}
+                                        </td>
+                                        <td className="whitespace-nowrap py-3 pr-4 font-medium text-foreground truncate">
+                                            {r.account}
+                                        </td>
+                                        <td className="whitespace-nowrap py-3 pr-4 font-medium text-foreground truncate">
+                                            {r.barangay}
+                                        </td>
+                                        <td className="whitespace-nowrap py-3 pr-4 font-medium text-foreground truncate">
+                                            {r.machine}
+                                        </td>
+                                        <td className="whitespace-nowrap py-3 pr-4 font-medium text-foreground">
+                                            {r.weight}
+                                        </td>
+                                        <td className="whitespace-nowrap py-3 pr-4 font-medium text-foreground">
+                                            {r.days}
+                                        </td>
+                                        <td className="whitespace-nowrap py-3 pr-1 text-right font-medium text-foreground">
+                                            {r.completed}
+                                        </td>
+                                    </tr>
+                                ))
+                            )}
+                        </tbody>
+                    </table>
+                </div>
             </div>
 
-            <p className="shrink-0 text-[11px] font-medium leading-[1.4] text-foreground">
-                Sample data · Showing {visibleRows.length} of {totalThisMonth} batches this
-                month
-            </p>
+            {/* Footer */}
+            <div className="mt-auto pt-4">
+                <p className="text-[12px] font-medium leading-[1.4] text-foreground">
+                    Showing {rows.length} of {totalThisMonth || rows.length} batches this month
+                </p>
+            </div>
         </article>
     )
 }
