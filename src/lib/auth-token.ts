@@ -2,7 +2,7 @@ import { createLogger } from './logger'
 
 const logger = createLogger('AuthToken')
 
-type TokenGetter = () => Promise<string | null | undefined>
+type TokenGetter = (options?: { template?: string; skipCache?: boolean }) => Promise<string | null | undefined>
 
 let activeTokenGetter: TokenGetter | null = null
 
@@ -10,10 +10,10 @@ export function setAuthTokenGetter(getter: TokenGetter | null): void {
   activeTokenGetter = getter
 }
 
-export async function getAuthToken(): Promise<string | null> {
+export async function getAuthToken(options?: { template?: string; skipCache?: boolean }): Promise<string | null> {
   if (activeTokenGetter) {
     try {
-      const dynamicToken = await activeTokenGetter()
+      const dynamicToken = await activeTokenGetter(options)
       if (dynamicToken) {
         return dynamicToken
       }
