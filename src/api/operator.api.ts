@@ -1,5 +1,6 @@
 import { api } from './client'
 import { isDateInRange } from '@/lib/date-range'
+import { barangayApi } from './barangay.api'
 
 export interface OperatorAccount {
   id: string
@@ -22,7 +23,6 @@ export interface OperatorStatsData {
 export interface OperatorQueryParams {
   search?: string
   status?: 'all' | 'active' | 'suspended'
-  barangay?: string
   dateRange?: string
   page?: number
   pageSize?: number
@@ -36,7 +36,7 @@ export interface OperatorListResponse {
   totalPages: number
 }
 
-// Backend User shape from GET /api/admin/operators
+// Backend User shape from GET /operators
 interface BackendOperator {
   id: string
   fullName: string | null
@@ -65,23 +65,26 @@ function mapBackendOperator(op: BackendOperator): OperatorAccount {
   }
 }
 
+export async function fetchRawOperators(): Promise<BackendOperator[]> {
+  return api.get<BackendOperator[]>('/operators')
+}
+
 export async function fetchOperatorAccounts(
   params: OperatorQueryParams = {}
 ): Promise<OperatorListResponse> {
   const {
     search = '',
     status = 'all',
-    barangay = 'all',
     dateRange = 'all',
     page = 1,
     pageSize = 10,
   } = params
 
   // Fetch all operators from backend
-  const raw = await api.get<BackendOperator[]>('/admin/operators')
+  const raw = await fetchRawOperators()
   const allOperators = raw.map(mapBackendOperator)
 
-  // Client-side filtering (backend returns all operators, we filter here)
+  // Client-side filtering (backend already restricts operators to the admin's assigned barangay)
   const filtered = allOperators.filter((op) => {
     const matchesSearch =
       !search ||
@@ -93,12 +96,9 @@ export async function fetchOperatorAccounts(
         ? op.status !== 'suspended'
         : op.status.toLowerCase() === status.toLowerCase()
 
-    const matchesBarangay =
-      barangay === 'all' || op.barangay.toLowerCase() === barangay.toLowerCase()
-
     const matchesDate = isDateInRange(op.dateJoined, dateRange)
 
-    return matchesSearch && matchesStatus && matchesBarangay && matchesDate
+    return matchesSearch && matchesStatus && matchesDate
   })
 
   const total = filtered.length
@@ -116,12 +116,15 @@ export async function fetchOperatorAccounts(
 }
 
 export async function fetchArchivedOperators(): Promise<OperatorAccount[]> {
-  const raw = await api.get<BackendOperator[]>('/admin/operators')
+  const raw = await fetchRawOperators()
   return raw.map(mapBackendOperator).filter((op) => op.status === 'suspended')
 }
 
 export async function fetchOperatorStats(): Promise<OperatorStatsData> {
-  const raw = await api.get<BackendOperator[]>('/admin/operators')
+  const [raw, codeRes] = await Promise.all([
+    fetchRawOperators(),
+    barangayApi.getCode().catch(() => ({ code: null })),
+  ])
   const allOperators = raw.map(mapBackendOperator)
 
   const active = allOperators.filter((op) => op.status === 'active').length
@@ -130,7 +133,7 @@ export async function fetchOperatorStats(): Promise<OperatorStatsData> {
   // Get barangay info from the first operator that has one
   const withBarangay = raw.find((op) => op.barangay)
   const barangayName = withBarangay?.barangay?.name || 'Unknown'
-  const barangayCode = withBarangay?.barangay?.id?.slice(0, 6).toUpperCase() || ''
+  const barangayCode = codeRes?.code || ''
 
   return {
     total: allOperators.length,
@@ -145,10 +148,10 @@ export async function updateOperatorStatus(
   id: string,
   status: 'active' | 'suspended'
 ): Promise<void> {
-  await api.patch(`/admin/operators/${id}/status`, { status })
+  await api.patch(`/operators/${id}/status`, { status })
 }
 
 export async function deleteOperator(id: string): Promise<void> {
-  await api.delete(`/admin/operators/${id}`)
+  await api.delete(`/operators/${id}`)
 }
 
