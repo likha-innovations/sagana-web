@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect } from 'react'
 import { Search, Calendar, Download, Loader2, Archive } from 'lucide-react'
 import { CustomDropdown, type DropdownOption } from '@/components/ui/custom-dropdown'
 
@@ -7,9 +7,6 @@ interface AccountsToolbarProps {
   onSearchChange: (value: string) => void
   status: string
   onStatusChange: (value: string) => void
-  barangay: string
-  onBarangayChange: (value: string) => void
-  barangayOptions: string[]
   dateRange: string
   onDateRangeChange: (value: string) => void
   onExport?: () => void
@@ -36,9 +33,6 @@ export function AccountsToolbar({
   onSearchChange,
   status,
   onStatusChange,
-  barangay,
-  onBarangayChange,
-  barangayOptions,
   dateRange,
   onDateRangeChange,
   onExport,
@@ -64,13 +58,6 @@ export function AccountsToolbar({
 
     return () => clearTimeout(handler)
   }, [localSearch, search, onSearchChange])
-
-  const barangayDropdownOptions: DropdownOption[] = useMemo(() => {
-    return [
-      { value: 'all', label: 'All barangays' },
-      ...barangayOptions.map((b) => ({ value: b, label: b })),
-    ]
-  }, [barangayOptions])
 
   return (
     <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between w-full">
@@ -102,15 +89,6 @@ export function AccountsToolbar({
           onChange={onStatusChange}
           options={STATUS_OPTIONS}
           ariaLabel="Filter by status"
-        />
-
-        {/* Barangay Filter */}
-        <CustomDropdown
-          id="barangay-select"
-          value={barangay}
-          onChange={onBarangayChange}
-          options={barangayDropdownOptions}
-          ariaLabel="Filter by barangay"
         />
 
         {/* Date Range Filter */}

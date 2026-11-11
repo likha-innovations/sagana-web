@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useCallback } from 'react'
 import { useSearchParams } from 'react-router'
 import { toast } from 'sonner'
 import { CompostBatchesHeader } from './compost-batches-header'
@@ -6,37 +6,18 @@ import { CompostBatchesStats } from './compost-batches-stats'
 import { CompostBatchesToolbar } from './compost-batches-toolbar'
 import { CompostBatchesTable } from './compost-batches-table'
 import { CompostBatchesPagination } from './compost-batches-pagination'
-import { useSocketContext } from '@/context/socket-context'
-import {
-  fetchBatches,
-  fetchBatchStats,
-  type Batch,
-  type BatchStatsData,
-  type BatchPhase,
-} from '@/api/batch.api'
+import { useBatches, useBatchStats } from '@/hooks/use-batches'
+import { fetchBatches, type Batch } from '@/api/batch.api'
+import { type BatchPhase } from '@/types/batch'
 import { exportBatchesReport } from '@/lib/export-batches-report'
 
 export function CompostBatchesPage() {
-  const { lastUpdateTimestamp } = useSocketContext()
   const [searchParams, setSearchParams] = useSearchParams()
 
   const searchParam = searchParams.get('search') || ''
   const statusParam = searchParams.get('status') || 'all'
   const dateRangeParam = searchParams.get('dateRange') || 'all'
   const pageParam = parseInt(searchParams.get('page') || '1', 10)
-
-  const [batches, setBatches] = useState<Batch[]>([])
-  const [stats, setStats] = useState<BatchStatsData>({
-    allTimeTotalProduced: '741 kg',
-    totalCompostBatches: 8,
-    finishedBatches: 5,
-    ongoingBatches: 3,
-  })
-  const [isLoading, setIsLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-
-  const [totalItems, setTotalItems] = useState(0)
-  const [totalPages, setTotalPages] = useState(1)
   const pageSize = 10
 
   const updateParams = useCallback(
@@ -56,70 +37,31 @@ export function CompostBatchesPage() {
     [setSearchParams]
   )
 
-  useEffect(() => {
-    fetchBatchStats().then(setStats).catch(() => {})
-  }, [])
+  const {
+    data: batchData,
+    isLoading,
+    isError,
+    refetch,
+  } = useBatches({
+    search: searchParam,
+    status: statusParam as 'all' | BatchPhase,
+    dateRange: dateRangeParam,
+    page: pageParam,
+    pageSize,
+  })
 
-  const isFetchingRef = useRef(false)
+  const { data: statsData } = useBatchStats()
 
-  const loadBatches = useCallback(
-    (isInitial = false) => {
-      if (isFetchingRef.current) return
-      isFetchingRef.current = true
+  const batches = batchData?.data ?? []
+  const totalItems = batchData?.total ?? 0
+  const totalPages = batchData?.totalPages ?? 1
 
-      if (isInitial) {
-        setIsLoading(true)
-      }
-      setError(null)
-
-      fetchBatches({
-        search: searchParam,
-        status: statusParam as 'all' | BatchPhase,
-        dateRange: dateRangeParam,
-        page: pageParam,
-        pageSize,
-      })
-        .then((res) => {
-          setBatches(res.data)
-          setTotalItems(res.total)
-          setTotalPages(res.totalPages)
-        })
-        .catch(() => {
-          if (isInitial) {
-            setError('Failed to load compost batches. Please try again.')
-          }
-        })
-        .finally(() => {
-          if (isInitial) {
-            setIsLoading(false)
-          }
-          isFetchingRef.current = false
-        })
-    },
-    [searchParam, statusParam, dateRangeParam, pageParam]
-  )
-
-  // Initial load or parameter change (shows skeleton)
-  useEffect(() => {
-    loadBatches(true)
-  }, [loadBatches])
-
-  // Real-time live update on WebSocket event (silent in background, no screen flicker!)
-  useEffect(() => {
-    if (lastUpdateTimestamp > 0) {
-      loadBatches(false)
-      fetchBatchStats().then(setStats).catch(() => {})
-    }
-  }, [lastUpdateTimestamp, loadBatches])
-
-  // Background live poll (silent in background, no screen flicker!)
-  useEffect(() => {
-    const timer = setInterval(() => {
-      loadBatches(false)
-      fetchBatchStats().then(setStats).catch(() => {})
-    }, 10000)
-    return () => clearInterval(timer)
-  }, [loadBatches])
+  const stats = statsData ?? {
+    allTimeTotalProduced: '0 kg',
+    totalCompostBatches: 0,
+    finishedBatches: 0,
+    ongoingBatches: 0,
+  }
 
   const [isExporting, setIsExporting] = useState(false)
 
@@ -163,7 +105,7 @@ export function CompostBatchesPage() {
   }
 
   const handleViewBatch = (batch: Batch) => {
-    toast.info(`Viewing batch: ${batch.code} (${batch.status})`)
+    toast.info(`Viewing batch: ${batch.batchCode} (${batch.status})`)
   }
 
   return (
@@ -196,8 +138,8 @@ export function CompostBatchesPage() {
           <CompostBatchesTable
             batches={batches}
             isLoading={isLoading}
-            error={error}
-            onRetry={loadBatches}
+            error={isError ? 'Failed to load compost batches. Please try again.' : null}
+            onRetry={() => void refetch()}
             onClearFilters={handleClearFilters}
             onView={handleViewBatch}
           />

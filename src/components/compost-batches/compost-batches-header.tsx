@@ -1,7 +1,7 @@
-import type { Batch } from '@/api/batch.api'
+import type { CompostBatch } from '@/types/batch'
 
 interface CompostBatchesHeaderProps {
-  filteredBatches?: Batch[]
+  filteredBatches?: CompostBatch[]
 }
 
 export function CompostBatchesHeader({ filteredBatches: _ }: CompostBatchesHeaderProps = {}) {

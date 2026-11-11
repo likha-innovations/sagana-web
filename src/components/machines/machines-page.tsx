@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useCallback } from 'react'
 import { useSearchParams } from 'react-router'
 import { toast } from 'sonner'
 import { MachinesHeader } from './machines-header'
@@ -6,35 +6,17 @@ import { MachinesStats } from './machines-stats'
 import { MachinesToolbar } from './machines-toolbar'
 import { MachinesTable } from './machines-table'
 import { MachinesPagination } from './machines-pagination'
-import { useSocketContext } from '@/context/socket-context'
-import {
-  fetchMachines,
-  fetchMachineStats,
-  type Machine,
-  type MachineStatsData,
-} from '@/api/machine.api'
+import { useMachines, useMachineStats } from '@/hooks/use-machines'
+import { fetchMachines, type Machine } from '@/api/machine.api'
 import { exportMachinesReport } from '@/lib/export-machines-report'
 
 export function MachinesPage() {
-  const { lastUpdateTimestamp } = useSocketContext()
   const [searchParams, setSearchParams] = useSearchParams()
 
   const searchParam = searchParams.get('search') || ''
   const statusParam = searchParams.get('status') || 'all'
   const dateRangeParam = searchParams.get('dateRange') || 'all'
   const pageParam = parseInt(searchParams.get('page') || '1', 10)
-
-  const [machines, setMachines] = useState<Machine[]>([])
-  const [stats, setStats] = useState<MachineStatsData>({
-    registered: 7,
-    online: 6,
-    offline: 1,
-  })
-  const [isLoading, setIsLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-
-  const [totalItems, setTotalItems] = useState(0)
-  const [totalPages, setTotalPages] = useState(1)
   const pageSize = 10
 
   const updateParams = useCallback(
@@ -54,70 +36,30 @@ export function MachinesPage() {
     [setSearchParams]
   )
 
-  useEffect(() => {
-    fetchMachineStats().then(setStats).catch(() => {})
-  }, [])
+  const {
+    data: machinesData,
+    isLoading,
+    isError,
+    refetch,
+  } = useMachines({
+    search: searchParam,
+    status: statusParam as 'all' | 'online' | 'offline',
+    dateRange: dateRangeParam,
+    page: pageParam,
+    pageSize,
+  })
 
-  const isFetchingRef = useRef(false)
+  const { data: statsData } = useMachineStats()
 
-  const loadMachines = useCallback(
-    (isInitial = false) => {
-      if (isFetchingRef.current) return
-      isFetchingRef.current = true
+  const machines = machinesData?.data ?? []
+  const totalItems = machinesData?.total ?? 0
+  const totalPages = machinesData?.totalPages ?? 1
 
-      if (isInitial) {
-        setIsLoading(true)
-      }
-      setError(null)
-
-      fetchMachines({
-        search: searchParam,
-        status: statusParam as 'all' | 'online' | 'offline',
-        dateRange: dateRangeParam,
-        page: pageParam,
-        pageSize,
-      })
-        .then((res) => {
-          setMachines(res.data)
-          setTotalItems(res.total)
-          setTotalPages(res.totalPages)
-        })
-        .catch(() => {
-          if (isInitial) {
-            setError('Failed to load machines. Please try again.')
-          }
-        })
-        .finally(() => {
-          if (isInitial) {
-            setIsLoading(false)
-          }
-          isFetchingRef.current = false
-        })
-    },
-    [searchParam, statusParam, dateRangeParam, pageParam]
-  )
-
-  // Initial load or parameter change (shows skeleton)
-  useEffect(() => {
-    loadMachines(true)
-  }, [loadMachines])
-
-  // Real-time live update on WebSocket event (silent in background, no screen flicker!)
-  useEffect(() => {
-    if (lastUpdateTimestamp > 0) {
-      loadMachines(false)
-      fetchMachineStats().then(setStats).catch(() => {})
-    }
-  }, [lastUpdateTimestamp, loadMachines])
-
-  // Background live poll (silent in background, no screen flicker!)
-  useEffect(() => {
-    const timer = setInterval(() => {
-      loadMachines(false)
-      fetchMachineStats().then(setStats).catch(() => {})
-    }, 10000)
-    return () => clearInterval(timer)
-  }, [loadMachines])
+  const stats = statsData ?? {
+    registered: 0,
+    online: 0,
+    offline: 0,
+  }
 
   const [isExporting, setIsExporting] = useState(false)
 
@@ -199,8 +141,8 @@ export function MachinesPage() {
           <MachinesTable
             machines={machines}
             isLoading={isLoading}
-            error={error}
-            onRetry={loadMachines}
+            error={isError ? 'Failed to load machines. Please try again.' : null}
+            onRetry={() => void refetch()}
             onClearFilters={handleClearFilters}
             onView={handleViewMachine}
           />
