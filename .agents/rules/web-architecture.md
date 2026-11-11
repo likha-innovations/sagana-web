@@ -1,4 +1,4 @@
-﻿# Web Architecture Rules (web-architect)
+# Web Architecture Rules (web-architect)
 
 ## 1. Project Directory Structure
 All client code inside sagana-web/src/ must adhere strictly to the role-based flat-layered architecture:
@@ -29,6 +29,13 @@ src/
 │   ├── auth/             # Public routes (sign-in.tsx)
 │   ├── admin/            # Admin routes (index.tsx)
 │   └── superadmin/       # Superadmin routes (dashboard.tsx, create-user.tsx)
+│
+├── tests/                # DEDICATED JEST TEST SUITES (*.test.ts)
+│   ├── batch.api.test.ts
+│   ├── machine.api.test.ts
+│   ├── operator.api.test.ts
+│   ├── dashboard.api.test.ts
+│   └── query-keys.test.ts
 │
 └── types/                # CENTRALIZED SCHEMAS & CONTRACTS
     ├── auth.ts           # Zod schemas & inferred TypeScript types

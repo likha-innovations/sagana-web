@@ -1,8 +1,13 @@
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from 'react'
 import { Socket } from 'socket.io-client'
+import { useQueryClient } from '@tanstack/react-query'
 import { connectSocket } from '@/lib/socket'
 import { useAuthContext } from './auth-context'
 import { createLogger } from '@/lib/logger'
+import { machineKeys } from '@/hooks/use-machines'
+import { batchKeys } from '@/hooks/use-batches'
+import { dashboardKeys } from '@/hooks/use-dashboard-data'
+import { operatorKeys } from '@/hooks/use-operators'
 
 const logger = createLogger('SocketContext')
 
@@ -56,6 +61,7 @@ const SocketContext = createContext<SocketContextType>({
 })
 
 export function SocketProvider({ children }: { children: ReactNode }) {
+  const queryClient = useQueryClient()
   const { getToken } = useAuthContext()
   const [isConnected, setIsConnected] = useState(false)
   const [lastTelemetry, setLastTelemetry] = useState<TelemetryPayload | null>(null)
@@ -100,12 +106,24 @@ export function SocketProvider({ children }: { children: ReactNode }) {
       const now = Date.now()
       if (now - lastThrottle > 2000) {
         lastThrottle = now
-        if (isMounted) setLastUpdateTimestamp(now)
+        if (isMounted) {
+          setLastUpdateTimestamp(now)
+          void queryClient.invalidateQueries({ queryKey: machineKeys.all })
+          void queryClient.invalidateQueries({ queryKey: batchKeys.all })
+          void queryClient.invalidateQueries({ queryKey: dashboardKeys.all })
+          void queryClient.invalidateQueries({ queryKey: operatorKeys.all })
+        }
       } else if (!throttleTimeout) {
         throttleTimeout = setTimeout(() => {
           throttleTimeout = null
           lastThrottle = Date.now()
-          if (isMounted) setLastUpdateTimestamp(Date.now())
+          if (isMounted) {
+            setLastUpdateTimestamp(Date.now())
+            void queryClient.invalidateQueries({ queryKey: machineKeys.all })
+            void queryClient.invalidateQueries({ queryKey: batchKeys.all })
+            void queryClient.invalidateQueries({ queryKey: dashboardKeys.all })
+            void queryClient.invalidateQueries({ queryKey: operatorKeys.all })
+          }
         }, 2000)
       }
     }

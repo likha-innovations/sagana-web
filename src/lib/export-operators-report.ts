@@ -30,7 +30,9 @@ export function exportOperatorsReport({
   })
 
   const barangayLabel =
-    barangay === 'all' ? 'All Barangays' : barangay
+    barangay && barangay !== 'all'
+      ? barangay
+      : (accounts[0]?.barangay || 'Assigned Barangay')
 
   const statusLabel =
     status === 'all'

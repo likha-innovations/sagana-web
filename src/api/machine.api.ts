@@ -39,8 +39,8 @@ export interface MachineListResponse {
   totalPages: number
 }
 
-// Backend Machine shape from GET /api/machines
-interface BackendMachine {
+// Backend Machine shape from GET /machines
+export interface BackendMachine {
   id: string
   barangayId: string
   macAddress: string
@@ -80,7 +80,7 @@ function formatDate(dateStr: string): string {
   })
 }
 
-function mapBackendMachine(m: BackendMachine): Machine {
+export function mapBackendMachine(m: BackendMachine): Machine {
   // Map backend status to frontend status
   const status: 'online' | 'offline' =
     m.status === 'active' || m.status === 'online' ? 'online' : 'offline'
@@ -111,6 +111,10 @@ function mapBackendMachine(m: BackendMachine): Machine {
   }
 }
 
+export async function fetchRawMachines(): Promise<BackendMachine[]> {
+  return api.get<BackendMachine[]>('/machines')
+}
+
 export async function fetchMachines(
   params: MachineQueryParams = {}
 ): Promise<MachineListResponse> {
@@ -123,7 +127,7 @@ export async function fetchMachines(
   } = params
 
   // Fetch all machines from backend
-  const raw = await api.get<BackendMachine[]>('/machines')
+  const raw = await fetchRawMachines()
   const allMachines = raw.map(mapBackendMachine)
 
   // Client-side filtering

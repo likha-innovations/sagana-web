@@ -1,14 +1,20 @@
 import { Link } from 'react-router'
 import { Skeleton } from '@/ui/skeleton'
-import type { Batch, BatchPhase } from '@/api/batch.api'
+import {
+  type CompostBatch,
+  type BatchPhase,
+  getBatchPhase,
+  getDaysComposting,
+  formatBatchDate,
+} from '@/types/batch'
 
 interface CompostBatchesTableProps {
-  batches: Batch[]
+  batches: CompostBatch[]
   isLoading?: boolean
   error?: string | null
   onRetry?: () => void
   onClearFilters?: () => void
-  onView?: (batch: Batch) => void
+  onView?: (batch: CompostBatch) => void
 }
 
 function getStatusBadgeClasses(status: BatchPhase) {
@@ -128,6 +134,10 @@ export function CompostBatchesTable({
             </tr>
           ) : (
             batches.map((batch) => {
+              const phase = getBatchPhase(batch)
+              const days = getDaysComposting(batch)
+              const startedOn = formatBatchDate(batch.startDate)
+
               return (
                 <tr
                   key={batch.id}
@@ -136,21 +146,21 @@ export function CompostBatchesTable({
                   {/* Batch ID */}
                   <td className="py-2 pr-3">
                     <span className="text-xs font-semibold leading-[140%] text-[#414141]">
-                      {batch.code}
+                      {batch.batchCode}
                     </span>
                   </td>
 
                   {/* Started By */}
                   <td className="py-2 pr-3">
                     <span className="text-xs font-normal leading-[140%] text-[#414141]">
-                      {batch.startedBy}
+                      Operator
                     </span>
                   </td>
 
                   {/* Machine */}
                   <td className="py-2 pr-3">
                     <span className="text-xs font-normal leading-[140%] text-[#414141]">
-                      {batch.machine}
+                      {batch.machineName || 'Unknown Machine'}
                     </span>
                   </td>
 
@@ -158,26 +168,26 @@ export function CompostBatchesTable({
                   <td className="py-2 pr-3">
                     <span
                       className={`inline-flex items-center rounded-full px-2.5 py-1 text-[12px] font-semibold leading-none ${getStatusBadgeClasses(
-                        batch.status
+                        phase
                       )}`}
                     >
-                      {batch.status}
+                      {phase}
                     </span>
                   </td>
 
                   {/* Feedstock weight */}
                   <td className="py-2 pr-3 text-xs font-normal text-[#414141]">
-                    {batch.feedstockWeight}
+                    {batch.totalWeight} kg
                   </td>
 
                   {/* Started on */}
                   <td className="py-2 pr-3 text-xs font-normal text-[#414141]">
-                    {batch.startedOn}
+                    {startedOn}
                   </td>
 
                   {/* Days composting */}
                   <td className="py-2 pr-3 text-xs font-normal text-[#414141]">
-                    {batch.daysComposting}
+                    {days}
                   </td>
 
                   {/* Action: View */}

@@ -1,4 +1,9 @@
-import type { Batch } from '@/api/batch.api'
+import {
+  type CompostBatch,
+  getBatchPhase,
+  getDaysComposting,
+  formatBatchDate,
+} from '@/types/batch'
 import {
   createBasePdfDoc,
   addReportHeader,
@@ -9,7 +14,7 @@ import {
 } from './pdf-utils'
 
 export interface ExportBatchesReportOptions {
-  batches: Batch[]
+  batches: CompostBatch[]
   search?: string
   status?: string
   dateRange?: string
@@ -46,7 +51,9 @@ export function exportBatchesReport({
   })
 
   // Quick summary breakdown
-  const completedCount = batches.filter((b) => b.status === 'Completed').length
+  const completedCount = batches.filter(
+    (b) => b.completionDate != null || b.status?.toLowerCase() === 'completed'
+  ).length
   const ongoingCount = batches.length - completedCount
 
   doc.setFont('helvetica', 'bold')
@@ -63,13 +70,13 @@ export function exportBatchesReport({
     batches.length === 0
       ? [['No compost batches found matching criteria', '', '', '', '', '', '']]
       : batches.map((b) => [
-          b.code,
-          b.startedBy,
-          b.machine,
-          b.status,
-          b.feedstockWeight,
-          b.startedOn,
-          `${b.daysComposting} day${b.daysComposting === 1 ? '' : 's'}`,
+          b.batchCode,
+          'Operator',
+          b.machineName || 'Machine',
+          getBatchPhase(b),
+          `${b.totalWeight} kg`,
+          formatBatchDate(b.startDate),
+          `${getDaysComposting(b)} day${getDaysComposting(b) === 1 ? '' : 's'}`,
         ])
 
   autoTable(doc, {

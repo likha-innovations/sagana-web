@@ -1,0 +1,58 @@
+name: Task
+description: Track technical tasks, chores, refactoring, research, or maintenance.
+title: "[Task] "
+body:
+  - type: textarea
+    id: description
+    attributes:
+      label: Task description
+      description: Describe what needs to be done, why it is needed, and any background context.
+    validations:
+      required: true
+  - type: dropdown
+    id: scope
+    attributes:
+      label: Scope / Area
+      description: Select the primary area this task belongs to.
+      options:
+        - Hardware & Sensors
+        - Firmware & Embedded
+        - Backend & API
+        - Database & MQTT
+        - Frontend & Dashboard
+        - Documentation & Thesis
+        - Tooling / CI/CD / DevOps
+        - Other
+  - type: textarea
+    id: steps
+    attributes:
+      label: Action items / Work to do
+      description: List the actionable steps or subtasks needed to complete this task.
+      placeholder: |
+        - [ ] Step 1: ...
+        - [ ] Step 2: ...
+        - [ ] Step 3: ...
+    validations:
+      required: true
+  - type: textarea
+    id: completion
+    attributes:
+      label: Definition of Done / Completion criteria
+      description: How will the team verify that this task is complete?
+      placeholder: |
+        - [ ] Implementation complete and verified on hardware or simulation
+        - [ ] No console errors, runtime warnings, or memory leaks
+        - [ ] Documentation updated (README, schematics, or inline comments)
+        - [ ] Follows branch naming and conventional commits
+    validations:
+      required: true
+  - type: textarea
+    id: dependencies
+    attributes:
+      label: Dependencies or blockers
+      description: List any related issues, PRs, hardware components, or prerequisites (e.g., Depends on #12, Waiting for sensor delivery).
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional context & resources
+      description: Add relevant links, datasheets, diagrams, schematics, or notes. Remove secrets and personal data.
