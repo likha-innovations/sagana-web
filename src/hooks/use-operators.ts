@@ -39,4 +39,3 @@ export function useArchivedOperators() {
     staleTime: 1000 * 30,
   })
 }
-

@@ -38,7 +38,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [dbUser, setDbUser] = useState<User | null>(null)
   const [isProfileFetched, setIsProfileFetched] = useState(false)
 
-  // Enforce session termination on browser close when "Keep me signed in" is unchecked (AC8 & AC9)
+
   useEffect(() => {
     if (!authLoaded || !isSignedIn) {
       return
@@ -57,12 +57,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [authLoaded, isSignedIn, clerkSignOut])
 
-  // Automatically wire Clerk's active JWT getter into native apiFetch
+
   useEffect(() => {
     setAuthTokenGetter(getToken)
   }, [getToken])
 
-  // Fetch backend profile from PostgreSQL (/me) to get database role
+
   useEffect(() => {
     let isMounted = true
     if (!isSignedIn) {
@@ -93,7 +93,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const isLoaded =
     authLoaded && userLoaded && signInLoaded && !isActionLoading && (!isSignedIn || isProfileFetched)
 
-  // Normalized user object mirroring Prisma model and mobile AuthContext
+
   const user: User | null = useMemo(() => {
     if (!clerkUser) return null
     const unsafeMeta = (clerkUser.unsafeMetadata || {}) as Record<string, unknown>
@@ -135,7 +135,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           password: validated.password,
         })
 
-        // If Clerk requests first factor password verification
+
         if (attempt.status === 'needs_first_factor') {
           attempt = await clerkSignIn.attemptFirstFactor({
             strategy: 'password',
@@ -146,8 +146,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (attempt.status === 'complete') {
           logger.info(`Sign in complete for ${email}`)
 
-          // Set storage flags BEFORE activating the session so the
-          // session-enforcement useEffect sees them when isSignedIn flips.
+
           if (keepSignedIn) {
             localStorage.setItem('sagana_keep_signed_in', 'true')
             sessionStorage.removeItem('sagana_session_active')
@@ -158,7 +157,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
           await setSignInActive({ session: attempt.createdSessionId })
 
-          // Verify admin role requirement (AC7)
+
           let verifiedRole: string | null = null
 
           try {

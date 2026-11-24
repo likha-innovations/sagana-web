@@ -3,6 +3,7 @@ interface AccountsPaginationProps {
   totalPages: number
   totalItems: number
   currentCount: number
+  pageSize?: number
   onPageChange: (page: number) => void
 }
 
@@ -11,9 +12,10 @@ export function AccountsPagination({
   totalPages,
   totalItems,
   currentCount,
+  pageSize = 10,
   onPageChange,
 }: AccountsPaginationProps) {
-  // Generate page numbers with ellipsis if needed
+
   const getPageNumbers = () => {
     const pages: (number | string)[] = []
     if (totalPages <= 5) {
@@ -32,33 +34,42 @@ export function AccountsPagination({
     return pages
   }
 
+  const start = totalItems === 0 ? 0 : (currentPage - 1) * pageSize + 1
+  const end = Math.min(start + currentCount - 1, totalItems)
+  const rangeDisplay =
+    totalItems === 0
+      ? '0 of 0'
+      : start === end
+      ? `${start} of ${totalItems}`
+      : `${start}-${end} of ${totalItems}`
+
   return (
-    <footer className="flex flex-wrap items-center justify-between gap-3 pt-1.5 text-[12px] text-[#7C7D74]">
-      {/* Left count indicator */}
+    <footer className="flex flex-wrap items-center justify-between gap-3 pt-1.5 text-xs text-text-email">
       <div>
-        <span>
-          {totalItems > 0 ? `${currentCount} of ${totalItems}` : '0 of 0'}
-        </span>
+        <span>{rangeDisplay}</span>
       </div>
 
-      {/* Right navigation controls */}
       <nav aria-label="Table pagination" className="flex items-center gap-2">
         <button
           type="button"
           disabled={currentPage <= 1}
           onClick={() => onPageChange(currentPage - 1)}
-          className="px-2 py-1 font-normal text-[#7C7D74] transition-colors hover:text-[#414141] disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+          className="px-2 py-1 font-normal text-text-email transition-colors hover:text-foreground disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
         >
           Previous
         </button>
 
-        <div className="flex items-center gap-1">
+        <span className="sm:hidden text-xs text-text-email">
+          Page {currentPage} of {totalPages}
+        </span>
+
+        <div className="hidden sm:flex items-center gap-1">
           {getPageNumbers().map((page, index) => {
             if (page === '...') {
               return (
                 <span
                   key={`ellipsis-${index}`}
-                  className="px-1 text-[#7C7D74] select-none"
+                  className="px-1 text-text-email select-none"
                 >
                   ...
                 </span>
@@ -74,9 +85,9 @@ export function AccountsPagination({
                 type="button"
                 onClick={() => onPageChange(pageNum)}
                 aria-current={isActive ? 'page' : undefined}
-                className={`flex h-6 w-6 items-center justify-center rounded-full text-[12px] font-semibold transition-colors cursor-pointer ${isActive
-                    ? 'bg-[#E5ECC4] text-[#566811]'
-                    : 'text-[#7C7D74] hover:bg-black/5 hover:text-[#414141]'
+                className={`flex h-6 w-6 items-center justify-center rounded-full text-xs font-semibold transition-colors cursor-pointer ${isActive
+                    ? 'bg-brand-100 text-brand-700'
+                    : 'text-text-email hover:bg-black/5 hover:text-foreground'
                   }`}
               >
                 {pageNum}
@@ -89,7 +100,7 @@ export function AccountsPagination({
           type="button"
           disabled={currentPage >= totalPages}
           onClick={() => onPageChange(currentPage + 1)}
-          className="px-2 py-1 font-semibold text-[#718619] transition-colors hover:text-[#566811] disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+          className="px-2 py-1 font-semibold text-primary transition-colors hover:text-brand-700 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
         >
           Next
         </button>

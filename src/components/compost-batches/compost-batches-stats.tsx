@@ -42,12 +42,12 @@ export function CompostBatchesStats({
     return (
       <section
         aria-label="Compost Batches Statistics"
-        className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-5 w-full"
+        className="grid grid-cols-2 xl:grid-cols-4 gap-4 w-full"
       >
         {[1, 2, 3, 4].map((i) => (
           <div
             key={i}
-            className="flex h-[101px] items-center justify-between rounded-[20px] bg-white p-5 shadow-card"
+            className="flex items-center justify-between rounded-[20px] bg-white p-4 sm:p-5 shadow-card"
           >
             <div className="flex flex-col gap-2">
               <Skeleton className="h-3 w-28 rounded" />
@@ -63,20 +63,20 @@ export function CompostBatchesStats({
   return (
     <section
       aria-label="Compost Batches Statistics"
-      className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-5 w-full"
+      className="grid grid-cols-2 xl:grid-cols-4 gap-4 w-full"
     >
       {cards.map((card) => {
         const Icon = card.icon
         return (
           <article
             key={card.label}
-            className="flex h-[101px] items-center justify-between rounded-[20px] bg-white p-5 shadow-card transition-shadow"
+            className="flex items-center justify-between rounded-[20px] bg-white p-4 sm:p-5 shadow-card transition-shadow"
           >
             <div className="flex flex-col gap-2">
-              <p className="text-[12px] font-medium leading-[140%] text-[#414141]">
+              <p className="text-xs font-medium leading-[140%] text-foreground">
                 {card.label}
               </p>
-              <p className="text-[29px] font-bold leading-none text-[#414141]">
+              <p className="text-2xl sm:text-[29px] font-bold leading-none text-foreground">
                 {card.isKg ? (
                   <span>
                     {String(card.value).replace(' kg', '')}
@@ -88,7 +88,7 @@ export function CompostBatchesStats({
               </p>
             </div>
 
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#718619] text-white shadow-xs">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary text-white shadow-xs">
               <Icon className="h-5 w-5" strokeWidth={2} aria-hidden="true" />
             </div>
           </article>

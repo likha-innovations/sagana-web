@@ -118,4 +118,3 @@ export function exportMachinesReport({
   addReportFooters(doc, 'Machines Inventory Report')
   openPdfInNewTab(doc, 'SAGANA - Machines Inventory Report')
 }
-

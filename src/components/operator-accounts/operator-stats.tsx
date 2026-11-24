@@ -21,7 +21,7 @@ export function OperatorStats({
   return (
     <section
       aria-label="Operator Accounts Statistics"
-      className="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-5 w-full"
+      className="grid grid-cols-2 xl:grid-cols-4 gap-4 w-full"
     >
       <KpiCards
         total={total}
@@ -30,9 +30,7 @@ export function OperatorStats({
         isLoading={isLoading}
       />
 
-      <div className="w-full xl:w-[302px] xl:shrink-0">
-        <BarangayCodeCard code={barangayCode} name={barangayName} />
-      </div>
+      <BarangayCodeCard code={barangayCode} name={barangayName} />
     </section>
   )
 }

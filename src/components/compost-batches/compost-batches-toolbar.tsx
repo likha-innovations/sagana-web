@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
-import { Search, Calendar, Download, Loader2 } from 'lucide-react'
+import { Search, Calendar } from 'lucide-react'
 import { CustomDropdown, type DropdownOption } from '@/components/ui/custom-dropdown'
+import { ExportDropdown } from '@/components/ui/export-dropdown'
 
 interface CompostBatchesToolbarProps {
   search: string
@@ -9,6 +10,8 @@ interface CompostBatchesToolbarProps {
   onStatusChange: (value: string) => void
   dateRange: string
   onDateRangeChange: (value: string) => void
+  onExportPdf?: () => void
+  onExportSheets?: () => void
   onExport?: () => void
   isExporting?: boolean
 }
@@ -35,6 +38,8 @@ export function CompostBatchesToolbar({
   onStatusChange,
   dateRange,
   onDateRangeChange,
+  onExportPdf,
+  onExportSheets,
   onExport,
   isExporting = false,
 }: CompostBatchesToolbarProps) {
@@ -58,8 +63,7 @@ export function CompostBatchesToolbar({
 
   return (
     <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between w-full">
-      {/* Search Input */}
-      <div className="relative flex-1 lg:max-w-[676px]">
+      <div className="relative flex-1 lg:max-w-169">
         <label htmlFor="batch-search" className="sr-only">
           Search a batch ID, status, or feedstock weight
         </label>
@@ -69,53 +73,42 @@ export function CompostBatchesToolbar({
           value={localSearch}
           onChange={(e) => setLocalSearch(e.target.value)}
           placeholder="Search a batch ID, status, or feedstock weight.."
-          className="h-[52px] w-full rounded-[14px] border border-[#DCDBD5] bg-white px-4 pr-11 text-xs leading-[140%] text-[#414141] placeholder:text-[#AFAEA7] outline-none transition-all focus:border-[#718619] focus:ring-1 focus:ring-[#718619]/30"
+          className="h-11 sm:h-13 w-full rounded-[14px] border border-border bg-white px-4 pr-11 text-xs leading-[140%] text-foreground placeholder:text-text-secondary outline-none transition-all focus:border-primary focus:ring-1 focus:ring-primary/30"
         />
         <Search
-          className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 h-4 w-4 text-[#7C7D74]"
+          className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 h-4 w-4 text-text-email"
           aria-hidden="true"
         />
       </div>
 
-      {/* Filter group */}
-      <div className="flex flex-wrap items-center gap-3">
-        {/* Status Filter */}
+      <div className="flex flex-wrap items-center gap-2 sm:gap-3">
         <CustomDropdown
           id="batch-status-select"
           value={status}
           onChange={onStatusChange}
           options={STATUS_OPTIONS}
           ariaLabel="Filter by batch status"
+          className="flex-1 min-w-28 sm:w-40 sm:flex-none"
         />
 
-        {/* Date Range Filter */}
         <CustomDropdown
           id="batch-date-select"
           value={dateRange}
           onChange={onDateRangeChange}
           options={DATE_RANGE_OPTIONS}
-          rightIcon={<Calendar className="h-4 w-4 text-[#7C7D74]" />}
+          rightIcon={<Calendar className="h-4 w-4 text-text-email" />}
           ariaLabel="Filter by date"
           enableCustomDateRange
           align="right"
+          className="flex-1 min-w-28 sm:w-40 sm:flex-none"
         />
 
-        {/* Export Button */}
-        {onExport && (
-          <button
-            type="button"
-            onClick={onExport}
-            disabled={isExporting}
-            title="Export report"
-            aria-label="Export report"
-            className="flex h-[52px] w-[52px] shrink-0 items-center justify-center rounded-[14px] border border-[#DCDBD5] bg-white text-[#414141] shadow-xs transition-colors hover:border-[#718619] hover:bg-[#718619] hover:text-white active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
-          >
-            {isExporting ? (
-              <Loader2 className="h-4.5 w-4.5 animate-spin" />
-            ) : (
-              <Download className="h-4.5 w-4.5" />
-            )}
-          </button>
+        {(onExportPdf || onExportSheets || onExport) && (
+          <ExportDropdown
+            onExportPdf={onExportPdf ?? onExport ?? (() => {})}
+            onExportSheets={onExportSheets ?? (() => {})}
+            isExporting={isExporting}
+          />
         )}
       </div>
     </div>

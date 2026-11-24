@@ -7,4 +7,3 @@ export interface BarangayCodeResponse {
 export const barangayApi = {
   getCode: () => api.get<BarangayCodeResponse>('/barangays/code'),
 }
-

@@ -2,12 +2,14 @@ import { api } from './client'
 import { isDateInRange } from '@/lib/date-range'
 import {
   type CompostBatch,
+  type BatchTemperatureReading,
   compostBatchSchema,
+  batchTemperatureReadingSchema,
   getBatchPhase,
   formatBatchDate,
 } from '@/types/batch'
 
-export type { CompostBatch, Batch } from '@/types/batch'
+export type { CompostBatch, Batch, BatchTemperatureReading } from '@/types/batch'
 
 export interface BatchStatsData {
   allTimeTotalProduced: string
@@ -107,5 +109,21 @@ export async function fetchBatchStats(): Promise<BatchStatsData> {
     totalCompostBatches: allBatches.length,
     finishedBatches,
     ongoingBatches,
+  }
+}
+
+export async function fetchBatchTemperature(
+  batchId: string
+): Promise<BatchTemperatureReading[]> {
+  try {
+    const raw = await api.get<unknown>(
+      `/batches/${encodeURIComponent(batchId)}/temperature`
+    )
+    if (Array.isArray(raw)) {
+      return batchTemperatureReadingSchema.array().catch([]).parse(raw)
+    }
+    return []
+  } catch {
+    return []
   }
 }

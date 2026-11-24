@@ -8,6 +8,7 @@ import { AccountsToolbar } from './accounts-toolbar'
 import { AccountsTable } from './accounts-table'
 import { AccountsPagination } from './accounts-pagination'
 import { SuspendOperatorModal } from './suspend-operator-modal'
+import { UserInfoModal } from './user-info-modal'
 import { ArchiveSidePanel } from './archive-side-panel'
 import {
   useOperators,
@@ -18,16 +19,18 @@ import {
 import {
   fetchOperatorAccounts,
   updateOperatorStatus,
+  updateOperator,
   deleteOperator,
   type OperatorAccount,
 } from '@/api/operator.api'
 import { exportOperatorsReport } from '@/lib/export-operators-report'
+import { exportOperatorsToSheets } from '@/lib/export-sheets'
 
 export function OperatorAccountsPage() {
   const queryClient = useQueryClient()
   const [searchParams, setSearchParams] = useSearchParams()
 
-  // Read search params
+
   const searchParam = searchParams.get('search') || ''
   const statusParam = searchParams.get('status') || 'all'
   const dateRangeParam = searchParams.get('dateRange') || 'all'
@@ -83,8 +86,10 @@ export function OperatorAccountsPage() {
   const [selectedOperator, setSelectedOperator] = useState<OperatorAccount | null>(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [isArchiveOpen, setIsArchiveOpen] = useState(false)
+  const [userInfoOperator, setUserInfoOperator] = useState<OperatorAccount | null>(null)
+  const [isUserInfoOpen, setIsUserInfoOpen] = useState(false)
 
-  // Clear filters
+
   const handleClearFilters = () => {
     updateParams({
       search: null,
@@ -94,7 +99,7 @@ export function OperatorAccountsPage() {
     })
   }
 
-  // Update status from modal with backend persistence
+
   const handleConfirmStatus = async (
     operator: OperatorAccount,
     newStatus: 'active' | 'suspended'
@@ -112,7 +117,7 @@ export function OperatorAccountsPage() {
     }
   }
 
-  // Archive bulk/individual restore
+
   const handleRestoreFromArchive = async (accountsToRestore: OperatorAccount[]) => {
     try {
       await Promise.all(
@@ -129,7 +134,7 @@ export function OperatorAccountsPage() {
     }
   }
 
-  // Archive bulk/individual delete
+
   const handleDeleteFromArchive = async (accountsToDelete: OperatorAccount[]) => {
     try {
       await Promise.all(accountsToDelete.map((a) => deleteOperator(a.id)))
@@ -146,7 +151,43 @@ export function OperatorAccountsPage() {
 
   const [isExporting, setIsExporting] = useState(false)
 
-  const handleExport = async () => {
+
+  const handleSaveUserInfo = async (
+    operator: OperatorAccount,
+    data: { firstName: string; lastName: string; birthday: string }
+  ) => {
+    try {
+      await updateOperator(operator.id, data)
+      toast.success(`Operator ${data.firstName} ${data.lastName} updated`)
+      setUserInfoOperator((prev) =>
+        prev
+          ? {
+              ...prev,
+              name: `${data.firstName} ${data.lastName}`.trim(),
+              firstName: data.firstName,
+              lastName: data.lastName,
+              birthday: data.birthday,
+            }
+          : null
+      )
+      void queryClient.invalidateQueries({ queryKey: operatorKeys.all })
+    } catch {
+      toast.error('Failed to update operator')
+    }
+  }
+
+
+  const handleArchiveFromUserInfo = async (operator: OperatorAccount) => {
+    try {
+      await updateOperatorStatus(operator.id, 'suspended')
+      toast.success(`Operator ${operator.name} archived`)
+      void queryClient.invalidateQueries({ queryKey: operatorKeys.all })
+    } catch {
+      toast.error('Failed to archive operator')
+    }
+  }
+
+  const handleExportPdf = async () => {
     try {
       setIsExporting(true)
       const res = await fetchOperatorAccounts({
@@ -178,12 +219,30 @@ export function OperatorAccountsPage() {
     }
   }
 
+  const handleExportSheets = async () => {
+    try {
+      setIsExporting(true)
+      const res = await fetchOperatorAccounts({
+        search: searchParam,
+        status: statusParam as 'all' | 'active' | 'suspended',
+        dateRange: dateRangeParam,
+        page: 1,
+        pageSize: 1000,
+      })
+      exportOperatorsToSheets(res.data.length > 0 ? res.data : accounts)
+      toast.success('Operator accounts exported as Sheets (CSV)')
+    } catch {
+      exportOperatorsToSheets(accounts)
+      toast.success('Operator accounts exported as Sheets (CSV)')
+    } finally {
+      setIsExporting(false)
+    }
+  }
+
   return (
     <div className="flex flex-col gap-4 w-full">
-      {/* Overview heading row */}
       <OverviewHeader />
 
-      {/* KPI summary row with preserved gap between 3 cards and Barangay card */}
       <OperatorStats
         total={stats.total}
         active={stats.active}
@@ -193,12 +252,10 @@ export function OperatorAccountsPage() {
         isLoading={isLoading}
       />
 
-      {/* Operator directory container card */}
       <section
         aria-label="Operator directory"
-        className="flex flex-col gap-3.5 rounded-[20px] bg-white px-5 pt-4.5 pb-2.5 shadow-card w-full"
+        className="flex flex-col gap-3.5 rounded-[20px] bg-white px-4 sm:px-5 pt-4.5 pb-2.5 shadow-card w-full overflow-hidden"
       >
-        {/* Toolbar */}
         <AccountsToolbar
           search={searchParam}
           onSearchChange={(val) => updateParams({ search: val, page: 1 })}
@@ -206,13 +263,13 @@ export function OperatorAccountsPage() {
           onStatusChange={(val) => updateParams({ status: val, page: 1 })}
           dateRange={dateRangeParam}
           onDateRangeChange={(val) => updateParams({ dateRange: val, page: 1 })}
-          onExport={handleExport}
+          onExportPdf={handleExportPdf}
+          onExportSheets={handleExportSheets}
           isExporting={isExporting}
           onOpenArchive={() => setIsArchiveOpen(true)}
           archivedCount={archivedAccounts.length}
         />
 
-        {/* Table with 20px space from toolbar */}
         <div className="mt-5">
           <AccountsTable
             accounts={accounts}
@@ -224,20 +281,23 @@ export function OperatorAccountsPage() {
               setSelectedOperator(account)
               setIsModalOpen(true)
             }}
+            onRowClick={(account) => {
+              setUserInfoOperator(account)
+              setIsUserInfoOpen(true)
+            }}
           />
         </div>
 
-        {/* Pagination Footer */}
         <AccountsPagination
           currentPage={pageParam}
           totalPages={totalPages}
           totalItems={totalItems}
           currentCount={accounts.length}
+          pageSize={pageSize}
           onPageChange={(page) => updateParams({ page })}
         />
       </section>
 
-      {/* Suspend / Activate Operator Modal */}
       <SuspendOperatorModal
         isOpen={isModalOpen}
         operator={selectedOperator}
@@ -248,7 +308,17 @@ export function OperatorAccountsPage() {
         onConfirm={handleConfirmStatus}
       />
 
-      {/* Archive Side Panel */}
+      <UserInfoModal
+        isOpen={isUserInfoOpen}
+        operator={userInfoOperator}
+        onClose={() => {
+          setIsUserInfoOpen(false)
+          setUserInfoOperator(null)
+        }}
+        onSave={handleSaveUserInfo}
+        onArchive={handleArchiveFromUserInfo}
+      />
+
       {isArchiveOpen && (
         <ArchiveSidePanel
           isOpen={isArchiveOpen}

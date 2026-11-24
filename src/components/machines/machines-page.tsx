@@ -6,9 +6,11 @@ import { MachinesStats } from './machines-stats'
 import { MachinesToolbar } from './machines-toolbar'
 import { MachinesTable } from './machines-table'
 import { MachinesPagination } from './machines-pagination'
+import { MachineInfoModal } from './machine-info-modal'
 import { useMachines, useMachineStats } from '@/hooks/use-machines'
 import { fetchMachines, type Machine } from '@/api/machine.api'
 import { exportMachinesReport } from '@/lib/export-machines-report'
+import { exportMachinesToSheets } from '@/lib/export-sheets'
 
 export function MachinesPage() {
   const [searchParams, setSearchParams] = useSearchParams()
@@ -62,8 +64,10 @@ export function MachinesPage() {
   }
 
   const [isExporting, setIsExporting] = useState(false)
+  const [selectedMachine, setSelectedMachine] = useState<Machine | null>(null)
+  const [isModalOpen, setIsModalOpen] = useState(false)
 
-  const handleExport = async () => {
+  const handleExportPdf = async () => {
     try {
       setIsExporting(true)
       const res = await fetchMachines({
@@ -93,6 +97,26 @@ export function MachinesPage() {
     }
   }
 
+  const handleExportSheets = async () => {
+    try {
+      setIsExporting(true)
+      const res = await fetchMachines({
+        search: searchParam,
+        status: statusParam as 'all' | 'online' | 'offline',
+        dateRange: dateRangeParam,
+        page: 1,
+        pageSize: 1000,
+      })
+      exportMachinesToSheets(res.data.length > 0 ? res.data : machines)
+      toast.success('Machines inventory exported as Sheets (CSV)')
+    } catch {
+      exportMachinesToSheets(machines)
+      toast.success('Machines inventory exported as Sheets (CSV)')
+    } finally {
+      setIsExporting(false)
+    }
+  }
+
   const handleClearFilters = () => {
     updateParams({
       search: null,
@@ -103,15 +127,14 @@ export function MachinesPage() {
   }
 
   const handleViewMachine = (machine: Machine) => {
-    toast.info(`Viewing machine: ${machine.code} (${machine.name})`)
+    setSelectedMachine(machine)
+    setIsModalOpen(true)
   }
 
   return (
     <div className="flex flex-col gap-4 w-full">
-      {/* Overview heading row */}
       <MachinesHeader filteredMachines={machines} />
 
-      {/* KPI 3 summary cards row */}
       <MachinesStats
         registered={stats.registered}
         online={stats.online}
@@ -119,12 +142,10 @@ export function MachinesPage() {
         isLoading={isLoading}
       />
 
-      {/* Machines directory container card */}
       <section
         aria-label="Machines directory"
-        className="flex flex-col gap-3.5 rounded-[20px] bg-white px-5 pt-4.5 pb-2.5 shadow-card w-full"
+        className="flex flex-col gap-3.5 rounded-[20px] bg-white px-4 sm:px-5 pt-4.5 pb-2.5 shadow-card w-full overflow-hidden"
       >
-        {/* Toolbar */}
         <MachinesToolbar
           search={searchParam}
           onSearchChange={(val) => updateParams({ search: val, page: 1 })}
@@ -132,12 +153,12 @@ export function MachinesPage() {
           onStatusChange={(val) => updateParams({ status: val, page: 1 })}
           dateRange={dateRangeParam}
           onDateRangeChange={(val) => updateParams({ dateRange: val, page: 1 })}
-          onExport={handleExport}
+          onExportPdf={handleExportPdf}
+          onExportSheets={handleExportSheets}
           isExporting={isExporting}
         />
 
-        {/* Table with 20px space from toolbar */}
-        <div className="mt-[20px]">
+        <div className="mt-5">
           <MachinesTable
             machines={machines}
             isLoading={isLoading}
@@ -148,15 +169,24 @@ export function MachinesPage() {
           />
         </div>
 
-        {/* Pagination Footer */}
         <MachinesPagination
           currentPage={pageParam}
           totalPages={totalPages}
           totalItems={totalItems}
           currentCount={machines.length}
+          pageSize={pageSize}
           onPageChange={(page) => updateParams({ page })}
         />
       </section>
+
+      <MachineInfoModal
+        isOpen={isModalOpen}
+        machine={selectedMachine}
+        onClose={() => {
+          setIsModalOpen(false)
+          setSelectedMachine(null)
+        }}
+      />
     </div>
   )
 }

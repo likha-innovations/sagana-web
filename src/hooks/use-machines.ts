@@ -28,4 +28,3 @@ export function useMachineStats() {
     staleTime: 1000 * 30,
   })
 }
-

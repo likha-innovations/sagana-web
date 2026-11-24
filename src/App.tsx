@@ -47,7 +47,7 @@ function AuthGuard() {
     return <Navigate to="/sign-in" replace />
   }
 
-  // AC8 & AC9: Check session persistence across browser sessions
+
   const keepSignedInStored = localStorage.getItem('sagana_keep_signed_in') === 'true'
   const sessionActiveStored = sessionStorage.getItem('sagana_session_active') === 'true'
   if (!keepSignedInStored && !sessionActiveStored) {

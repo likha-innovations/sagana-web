@@ -50,7 +50,7 @@ export function exportBatchesReport({
     ],
   })
 
-  // Quick summary breakdown
+
   const completedCount = batches.filter(
     (b) => b.completionDate != null || b.status?.toLowerCase() === 'completed'
   ).length
@@ -127,4 +127,3 @@ export function exportBatchesReport({
   addReportFooters(doc, 'Compost Batches Report')
   openPdfInNewTab(doc, 'SAGANA - Compost Batches Report')
 }
-

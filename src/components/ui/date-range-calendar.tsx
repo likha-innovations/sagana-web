@@ -87,14 +87,14 @@ export function DateRangeCalendar({
     clicked.setHours(0, 0, 0, 0)
 
     if (!selectingEnd || !rangeStart) {
-      // Selecting start date
+
       setRangeStart(clicked)
       setRangeEnd(null)
       setSelectingEnd(true)
     } else {
-      // Selecting end date
+
       if (clicked.getTime() < rangeStart.getTime()) {
-        // Clicked before start: swap
+
         setRangeEnd(rangeStart)
         setRangeStart(clicked)
       } else {
@@ -108,12 +108,12 @@ export function DateRangeCalendar({
     if (rangeStart && rangeEnd) {
       onRangeSelect(rangeStart, rangeEnd)
     } else if (rangeStart) {
-      // Single day selected — use same date for both
+
       onRangeSelect(rangeStart, rangeStart)
     }
   }
 
-  // The effective end for hover preview
+
   const previewEnd = selectingEnd && hoverDate && rangeStart
     ? (hoverDate.getTime() >= rangeStart.getTime() ? hoverDate : null)
     : rangeEnd
@@ -126,41 +126,38 @@ export function DateRangeCalendar({
 
   return (
     <div className="flex flex-col gap-3 p-3" onClick={(e) => e.stopPropagation()}>
-      {/* Month/Year Navigation */}
       <div className="flex items-center justify-between">
         <button
           type="button"
           onClick={prevMonth}
-          className="flex h-7 w-7 items-center justify-center rounded-lg text-[#7C7D74] hover:bg-[#F4F3EC] transition-colors cursor-pointer"
+          className="flex h-7 w-7 items-center justify-center rounded-lg text-text-email hover:bg-[#F4F3EC] transition-colors cursor-pointer"
           aria-label="Previous month"
         >
           <ChevronLeft className="h-3.5 w-3.5" />
         </button>
-        <span className="text-xs font-bold text-[#414141] select-none">
+        <span className="text-xs font-bold text-foreground select-none">
           {MONTH_NAMES[viewMonth]} {viewYear}
         </span>
         <button
           type="button"
           onClick={nextMonth}
-          className="flex h-7 w-7 items-center justify-center rounded-lg text-[#7C7D74] hover:bg-[#F4F3EC] transition-colors cursor-pointer"
+          className="flex h-7 w-7 items-center justify-center rounded-lg text-text-email hover:bg-[#F4F3EC] transition-colors cursor-pointer"
           aria-label="Next month"
         >
           <ChevronRight className="h-3.5 w-3.5" />
         </button>
       </div>
 
-      {/* Day-of-week headers */}
       <div className="grid grid-cols-7 gap-0">
         {DAYS_OF_WEEK.map((d) => (
           <div
             key={d}
-            className="flex h-7 items-center justify-center text-[11px] font-semibold text-[#AFAEA7] select-none"
+            className="flex h-7 items-center justify-center text-[11px] font-semibold text-text-secondary select-none"
           >
             {d}
           </div>
         ))}
 
-        {/* Day cells */}
         {cells.map((day, idx) => {
           if (day === null) {
             return <div key={`empty-${idx}`} className="h-7" />
@@ -176,18 +173,18 @@ export function DateRangeCalendar({
           const isToday = isSameDay(date, today)
           const isFuture = date.getTime() > today.getTime()
 
-          let cellClasses = 'flex h-7 w-full items-center justify-center text-[12px] font-medium transition-all duration-100 cursor-pointer select-none relative '
+          let cellClasses = 'flex h-7 w-full items-center justify-center text-xs font-medium transition-all duration-100 cursor-pointer select-none relative '
 
           if (isStart || isEnd) {
-            cellClasses += 'bg-[#718619] text-white rounded-lg font-bold z-10 '
+            cellClasses += 'bg-primary text-white rounded-lg font-bold z-10 '
           } else if (inRange) {
-            cellClasses += 'bg-[#E8EDC8] text-[#414141] '
+            cellClasses += 'bg-brand-100 text-foreground '
           } else if (isFuture) {
             cellClasses += 'text-[#D4D3CD] cursor-default '
           } else if (isToday) {
-            cellClasses += 'text-[#718619] font-bold hover:bg-[#F4F3EC] rounded-lg '
+            cellClasses += 'text-primary font-bold hover:bg-[#F4F3EC] rounded-lg '
           } else {
-            cellClasses += 'text-[#414141] hover:bg-[#F4F3EC] rounded-lg '
+            cellClasses += 'text-foreground hover:bg-[#F4F3EC] rounded-lg '
           }
 
           return (
@@ -208,27 +205,25 @@ export function DateRangeCalendar({
         })}
       </div>
 
-      {/* Date range display */}
-      <div className="flex items-center justify-center gap-1.5 text-[11px] font-medium text-[#7C7D74] select-none min-h-[18px]">
+      <div className="flex items-center justify-center gap-1.5 text-[11px] font-medium text-text-email select-none min-h-4.5">
         {rangeStart ? (
           <>
-            <span className="text-[#414141] font-semibold">{formatShortDate(rangeStart)}</span>
+            <span className="text-foreground font-semibold">{formatShortDate(rangeStart)}</span>
             <span>—</span>
-            <span className={rangeEnd ? 'text-[#414141] font-semibold' : 'text-[#AFAEA7]'}>
+            <span className={rangeEnd ? 'text-foreground font-semibold' : 'text-text-secondary'}>
               {rangeEnd ? formatShortDate(rangeEnd) : 'Select end date'}
             </span>
           </>
         ) : (
-          <span className="text-[#AFAEA7]">Select a start date</span>
+          <span className="text-text-secondary">Select a start date</span>
         )}
       </div>
 
-      {/* Action buttons */}
       <div className="flex items-center gap-2 pt-0.5">
         <button
           type="button"
           onClick={onCancel}
-          className="flex-1 h-8 rounded-xl border border-[#DCDBD5] bg-white text-[12px] font-semibold text-[#414141] hover:bg-[#FAF9F5] transition-colors cursor-pointer"
+          className="flex-1 h-8 rounded-xl border border-border bg-white text-xs font-semibold text-foreground hover:bg-[#FAF9F5] transition-colors cursor-pointer"
         >
           Cancel
         </button>
@@ -236,10 +231,10 @@ export function DateRangeCalendar({
           type="button"
           disabled={!hasSelection}
           onClick={handleApply}
-          className={`flex-1 h-8 rounded-xl text-[12px] font-semibold transition-colors cursor-pointer ${
+          className={`flex-1 h-8 rounded-xl text-xs font-semibold transition-colors cursor-pointer ${
             hasSelection
-              ? 'bg-[#718619] text-white hover:bg-[#5E7014]'
-              : 'bg-[#DCDBD5] text-[#AFAEA7] cursor-not-allowed'
+              ? 'bg-primary text-white hover:bg-[#5E7014]'
+              : 'bg-border text-text-secondary cursor-not-allowed'
           }`}
         >
           Apply

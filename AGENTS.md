@@ -25,6 +25,7 @@
 - **Strip All Conversational Fluff**: Eliminate polite filler, preamble, self-evident narration, and hedging.
 - **Dense, Exact Prose**: Keep technical terms exact, file links clickable, and explanations compact.
 - **Direct Named Imports**: Follow `clean-code-guardian`. Ban `React.FC` and inline `React.*` namespaces (`React.useState`, `React.useEffect`, `React.ReactNode`). Always import named identifiers directly.
+- **Tailwind Canonical Classes**: Always use Tailwind theme tokens and canonical utility names instead of arbitrary bracket values when a token exists. Apply every `suggestCanonicalClasses` suggestion before committing (e.g. `text-foreground` not `text-[#414141]`, `border-border` not `border-[#DCDBD5]`, `h-13` not `h-[52px]`). Reference `src/index.css` `@theme` block for the project's color tokens.
 
 ## 4. 🎨 Web UI Agent & Skills
 

@@ -1,7 +1,4 @@
-/**
- * Resolves a dateRange filter value (e.g. 'all', '7d', '30d', 'this-year', 'custom:2026-01-01_2026-06-30')
- * into a { start, end } Date range, or null if 'all' (no filtering).
- */
+
 export function resolveDateRange(
   dateRange: string
 ): { start: Date; end: Date } | null {
@@ -30,7 +27,7 @@ export function resolveDateRange(
     return { start, end: now }
   }
 
-  // Custom: "custom:YYYY-MM-DD_YYYY-MM-DD"
+
   if (dateRange.startsWith('custom:')) {
     const parts = dateRange.slice(7).split('_')
     if (parts.length === 2) {
@@ -45,24 +42,18 @@ export function resolveDateRange(
   return null
 }
 
-/**
- * Returns true if the given date string falls within the resolved date range.
- * dateStr can be an ISO string or any parseable date string.
- */
+
 export function isDateInRange(dateStr: string, dateRange: string): boolean {
   const range = resolveDateRange(dateRange)
-  if (!range) return true // 'all' → everything matches
+  if (!range) return true
 
   const d = new Date(dateStr)
-  if (isNaN(d.getTime())) return true // can't parse → don't filter out
+  if (isNaN(d.getTime())) return true
 
   return d.getTime() >= range.start.getTime() && d.getTime() <= range.end.getTime()
 }
 
-/**
- * Returns the formatted date range for the current month in real-time,
- * e.g. "Oct 1–31, 2026", "Nov 1–30, 2026", etc.
- */
+
 export function getCurrentMonthDateRange(date = new Date()): string {
   const monthName = date.toLocaleString('en-US', { month: 'short' })
   const year = date.getFullYear()
@@ -70,3 +61,19 @@ export function getCurrentMonthDateRange(date = new Date()): string {
   return `${monthName} 1–${lastDay}, ${year}`
 }
 
+
+export function formatDisplayRange(start: Date, end: Date): string {
+  const sameYear = start.getFullYear() === end.getFullYear()
+  const sameMonth = sameYear && start.getMonth() === end.getMonth()
+
+  const fmt = (d: Date, opts: Intl.DateTimeFormatOptions) =>
+    d.toLocaleDateString('en-US', opts)
+
+  if (sameMonth) {
+    return `${fmt(start, { month: 'short' })} ${start.getDate()}–${end.getDate()}, ${end.getFullYear()}`
+  }
+  if (sameYear) {
+    return `${fmt(start, { month: 'short' })} ${start.getDate()} – ${fmt(end, { month: 'short' })} ${end.getDate()}, ${end.getFullYear()}`
+  }
+  return `${fmt(start, { month: 'short', day: 'numeric', year: 'numeric' })} – ${fmt(end, { month: 'short', day: 'numeric', year: 'numeric' })}`
+}

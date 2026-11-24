@@ -44,8 +44,7 @@ export function SuspendOperatorModal({
         aria-hidden="true"
       />
 
-      <div className="relative w-full max-w-[420px] rounded-[24px] bg-white p-6 shadow-2xl border border-[#DCDBD5] animate-in zoom-in-95 duration-200">
-        {/* Header Icon */}
+      <div className="relative w-full max-w-[420px] rounded-[20px] sm:rounded-[24px] bg-white p-5 sm:p-6 shadow-2xl border border-border animate-in zoom-in-95 duration-200">
         <div className="flex justify-center mb-3.5">
           {isSuspended ? (
             <div className="flex h-13 w-13 items-center justify-center rounded-full bg-[#E4F4D6] text-[#3D7826] border border-[#BCE6A3]">
@@ -58,7 +57,6 @@ export function SuspendOperatorModal({
           )}
         </div>
 
-        {/* Modal Header */}
         <h3 className="text-center text-[18px] font-semibold text-[#333333]">
           {isSuspended ? 'Activate Operator Account?' : 'Suspend Operator Account?'}
         </h3>
@@ -79,13 +77,12 @@ export function SuspendOperatorModal({
           )}
         </p>
 
-        {/* Action Buttons: "Cancel" and "Yes, suspend" / "Yes, activate" */}
         <div className="mt-6 flex items-center gap-3">
           <button
             type="button"
             onClick={onClose}
             disabled={isSubmitting}
-            className="flex-1 h-[46px] rounded-[14px] border border-[#DCDBD5] bg-white text-[13px] font-medium text-[#555555] hover:bg-[#F7F6F1] transition-all cursor-pointer disabled:opacity-50"
+            className="flex-1 h-11 sm:h-[46px] rounded-[14px] border border-border bg-white text-[13px] font-medium text-[#555555] hover:bg-[#F7F6F1] transition-all cursor-pointer disabled:opacity-50"
           >
             Cancel
           </button>
@@ -94,9 +91,9 @@ export function SuspendOperatorModal({
             type="button"
             onClick={handleConfirm}
             disabled={isSubmitting}
-            className={`flex-1 h-[46px] rounded-[14px] text-[13px] font-medium text-white shadow-xs transition-all cursor-pointer flex items-center justify-center gap-2 disabled:opacity-50 ${
+            className={`flex-1 h-11 sm:h-[46px] rounded-[14px] text-[13px] font-medium text-white shadow-xs transition-all cursor-pointer flex items-center justify-center gap-2 disabled:opacity-50 ${
               isSuspended
-                ? 'bg-[#718619] hover:bg-[#627515] active:bg-[#536312]'
+                ? 'bg-primary hover:bg-[#627515] active:bg-[#536312]'
                 : 'bg-[#D92D20] hover:bg-[#B42318] active:bg-[#912018]'
             }`}
           >
@@ -116,4 +113,3 @@ export function SuspendOperatorModal({
     </div>
   )
 }
-

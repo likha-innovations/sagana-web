@@ -20,19 +20,19 @@ export function ChangePasswordFlow({ userEmail, onClose, onSuccess, onStepChange
 
   const [step, _setStep] = useState<FlowStep>('idle')
 
-  // Wrapper that also notifies parent of step changes
+
   const setStep = (newStep: FlowStep) => {
     _setStep(newStep)
     onStepChange?.(newStep)
   }
 
-  // OTP state
+
   const [otp, setOtp] = useState<string[]>(['', '', '', '', '', ''])
   const [otpError, setOtpError] = useState<string | null>(null)
   const [resendCooldown, setResendCooldown] = useState(0)
   const otpInputRefs = useRef<(HTMLInputElement | null)[]>([])
 
-  // New password state
+
   const [newPassword, setNewPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [showNewPassword, setShowNewPassword] = useState(false)
@@ -42,7 +42,7 @@ export function ChangePasswordFlow({ userEmail, onClose, onSuccess, onStepChange
 
   const [isLoading, setIsLoading] = useState(false)
 
-  // Resend cooldown timer
+
   useEffect(() => {
     if (resendCooldown <= 0) return
     const timer = setInterval(() => {
@@ -51,7 +51,7 @@ export function ChangePasswordFlow({ userEmail, onClose, onSuccess, onStepChange
     return () => clearInterval(timer)
   }, [resendCooldown])
 
-  // Live password rules
+
   const hasMinLength = newPassword.length >= 8
   const hasUpperAndLower = /[a-z]/.test(newPassword) && /[A-Z]/.test(newPassword)
   const hasNumber = /\d/.test(newPassword)
@@ -86,14 +86,11 @@ export function ChangePasswordFlow({ userEmail, onClose, onSuccess, onStepChange
   const handleConfirmAndSendOtp = async () => {
     setIsLoading(true)
     try {
-      const res = await userApi.sendPasswordOtp()
+      await userApi.sendPasswordOtp()
       setOtp(['', '', '', '', '', ''])
       setOtpError(null)
       setResendCooldown(30)
       toast.info(`Verification code sent to ${maskedEmail}`)
-      if (res?.debugCode) {
-        console.log('[SAGANA DEV] Verification code:', res.debugCode)
-      }
       setStep('otp')
       setTimeout(() => {
         otpInputRefs.current[0]?.focus()
@@ -111,14 +108,11 @@ export function ChangePasswordFlow({ userEmail, onClose, onSuccess, onStepChange
     if (resendCooldown > 0) return
 
     try {
-      const res = await userApi.sendPasswordOtp()
+      await userApi.sendPasswordOtp()
       setResendCooldown(30)
       setOtp(['', '', '', '', '', ''])
       setOtpError(null)
       toast.success(`New verification code sent to ${maskedEmail}`)
-      if (res?.debugCode) {
-        console.log('[SAGANA DEV] Resent code:', res.debugCode)
-      }
       otpInputRefs.current[0]?.focus()
     } catch (err: unknown) {
       const errMsg = (err as { message?: string })?.message || 'Failed to resend code'
@@ -238,12 +232,12 @@ export function ChangePasswordFlow({ userEmail, onClose, onSuccess, onStepChange
       <div>
         <div className="flex items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <div className="flex h-8.5 w-8.5 shrink-0 items-center justify-center rounded-[10px] bg-[#566811] text-white shadow-xs">
+            <div className="flex h-8.5 w-8.5 shrink-0 items-center justify-center rounded-[10px] bg-brand-700 text-white shadow-xs">
               <Lock className="h-4.5 w-4.5" strokeWidth={2} />
             </div>
             <div>
-              <h3 className="text-sm font-bold text-[#414141]">Change Password</h3>
-              <p className="text-xs text-[#7C7D74] mt-0.5">
+              <h3 className="text-sm font-bold text-foreground">Change Password</h3>
+              <p className="text-xs text-text-email mt-0.5">
                 Ensure your account is using a secure, updated password
               </p>
             </div>
@@ -252,7 +246,7 @@ export function ChangePasswordFlow({ userEmail, onClose, onSuccess, onStepChange
           <button
             type="button"
             onClick={() => setStep('confirm_prompt')}
-            className="rounded-xl bg-[#566811] px-5 py-2.5 text-xs font-bold text-white shadow-xs hover:bg-[#46550e] active:scale-[0.99] transition-all cursor-pointer whitespace-nowrap"
+            className="rounded-xl bg-brand-700 px-5 py-2.5 text-xs font-bold text-white shadow-xs hover:bg-[#46550e] active:scale-[0.99] transition-all cursor-pointer whitespace-nowrap"
           >
             Change Password
           </button>
@@ -265,11 +259,11 @@ export function ChangePasswordFlow({ userEmail, onClose, onSuccess, onStepChange
   if (step === 'confirm_prompt') {
     return (
       <div className="flex flex-col items-center text-center">
-        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[#E5ECC4] text-[#566811] mb-3 shadow-xs">
+        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-brand-100 text-brand-700 mb-3 shadow-xs">
           <ShieldCheck className="h-6 w-6" />
         </div>
-        <h3 className="text-base font-bold text-[#414141]">Change password?</h3>
-        <p className="text-xs text-[#7C7D74] mt-1.5 max-w-sm">
+        <h3 className="text-base font-bold text-foreground">Change password?</h3>
+        <p className="text-xs text-text-email mt-1.5 max-w-sm">
           Are you sure you want to change your password? We'll send a verification code to your email to continue.
         </p>
 
@@ -278,7 +272,7 @@ export function ChangePasswordFlow({ userEmail, onClose, onSuccess, onStepChange
             type="button"
             onClick={() => setStep('idle')}
             disabled={isLoading}
-            className="rounded-xl border border-[#DCDBD5] bg-white px-5 py-2.5 text-xs font-semibold text-[#414141] hover:bg-[#F2F1EA] transition-colors cursor-pointer disabled:opacity-50"
+            className="rounded-xl border border-border bg-white px-5 py-2.5 text-xs font-semibold text-foreground hover:bg-[#F2F1EA] transition-colors cursor-pointer disabled:opacity-50"
           >
             Cancel
           </button>
@@ -286,7 +280,7 @@ export function ChangePasswordFlow({ userEmail, onClose, onSuccess, onStepChange
             type="button"
             onClick={handleConfirmAndSendOtp}
             disabled={isLoading}
-            className="rounded-xl bg-[#566811] px-6 py-2.5 text-xs font-bold text-white shadow-xs hover:bg-[#46550e] active:scale-[0.99] transition-all cursor-pointer disabled:opacity-50"
+            className="rounded-xl bg-brand-700 px-6 py-2.5 text-xs font-bold text-white shadow-xs hover:bg-[#46550e] active:scale-[0.99] transition-all cursor-pointer disabled:opacity-50"
           >
             {isLoading ? 'Sending...' : 'Confirm'}
           </button>
@@ -299,9 +293,9 @@ export function ChangePasswordFlow({ userEmail, onClose, onSuccess, onStepChange
   if (step === 'otp') {
     return (
       <div>
-        <h3 className="text-base font-bold text-[#414141] mb-2">Enter one-time code</h3>
-        <p className="text-xs text-[#7C7D74] mb-6">
-          A 6-digit code has been sent to your email <span className="font-semibold text-[#414141]">{maskedEmail}</span>. Enter the code below to reset your password.
+        <h3 className="text-base font-bold text-foreground mb-2">Enter one-time code</h3>
+        <p className="text-xs text-text-email mb-6">
+          A 6-digit code has been sent to your email <span className="font-semibold text-foreground">{maskedEmail}</span>. Enter the code below to reset your password.
         </p>
 
         <form onSubmit={handleVerifyOtp} className="space-y-5">
@@ -320,10 +314,10 @@ export function ChangePasswordFlow({ userEmail, onClose, onSuccess, onStepChange
                   value={digit}
                   onChange={(e) => handleOtpChange(idx, e)}
                   onKeyDown={(e) => handleOtpKeyDown(idx, e)}
-                  className={`h-12 w-11 rounded-xl border bg-white text-center text-lg font-bold text-[#414141] transition-all focus:outline-none ${
+                  className={`h-12 w-11 rounded-xl border bg-white text-center text-lg font-bold text-foreground transition-all focus:outline-none ${
                     otpError
                       ? 'border-red-500 text-red-600 focus:ring-1 focus:ring-red-500'
-                      : 'border-[#DCDBD5] focus:border-[#718619] focus:ring-1 focus:ring-[#718619]'
+                      : 'border-border focus:border-primary focus:ring-1 focus:ring-primary'
                   }`}
                 />
               ))}
@@ -331,20 +325,20 @@ export function ChangePasswordFlow({ userEmail, onClose, onSuccess, onStepChange
 
             {/* Error Message */}
             {otpError && (
-              <p className="text-[12px] text-red-600 font-medium mt-2 flex items-center gap-1.5 animate-in fade-in duration-150">
+              <p className="text-xs text-red-600 font-medium mt-2 flex items-center gap-1.5 animate-in fade-in duration-150">
                 <AlertCircle className="h-3.5 w-3.5 shrink-0" />
                 <span>{otpError}</span>
               </p>
             )}
 
             {/* Resend Link aligned with boxes */}
-            <div className="mt-3 text-xs text-[#7C7D74] text-center">
+            <div className="mt-3 text-xs text-text-email text-center">
               Didn't receive code?{' '}
               <button
                 type="button"
                 onClick={handleResendOtp}
                 disabled={resendCooldown > 0}
-                className="font-semibold text-[#566811] hover:text-[#718619] hover:underline disabled:opacity-50 disabled:no-underline cursor-pointer transition-colors"
+                className="font-semibold text-brand-700 hover:text-primary hover:underline disabled:opacity-50 disabled:no-underline cursor-pointer transition-colors"
               >
                 {resendCooldown > 0 ? `Resend in ${resendCooldown}s` : 'Resend'}
               </button>
@@ -357,14 +351,14 @@ export function ChangePasswordFlow({ userEmail, onClose, onSuccess, onStepChange
               type="button"
               onClick={() => setStep('idle')}
               disabled={isLoading}
-              className="rounded-xl border border-[#DCDBD5] bg-white px-5 py-2.5 text-xs font-semibold text-[#414141] hover:bg-[#F2F1EA] transition-colors cursor-pointer disabled:opacity-50"
+              className="rounded-xl border border-border bg-white px-5 py-2.5 text-xs font-semibold text-foreground hover:bg-[#F2F1EA] transition-colors cursor-pointer disabled:opacity-50"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={isLoading}
-              className="rounded-xl bg-[#566811] px-6 py-2.5 text-xs font-bold text-white shadow-xs hover:bg-[#46550e] active:scale-[0.99] transition-all cursor-pointer disabled:opacity-50"
+              className="rounded-xl bg-brand-700 px-6 py-2.5 text-xs font-bold text-white shadow-xs hover:bg-[#46550e] active:scale-[0.99] transition-all cursor-pointer disabled:opacity-50"
             >
               {isLoading ? 'Verifying...' : 'Next'}
             </button>
@@ -378,15 +372,15 @@ export function ChangePasswordFlow({ userEmail, onClose, onSuccess, onStepChange
   if (step === 'enter_new') {
     return (
       <div>
-        <h3 className="text-base font-bold text-[#414141] mb-2">Enter new password</h3>
-        <p className="text-xs text-[#7C7D74] mb-5">
+        <h3 className="text-base font-bold text-foreground mb-2">Enter new password</h3>
+        <p className="text-xs text-text-email mb-5">
           Enter your new password to proceed with the password reset.
         </p>
 
         <form onSubmit={handleSubmitNewPassword} className="space-y-4">
           {/* New Password Field */}
           <div>
-            <label htmlFor="modal-new-pwd-flow" className="block text-xs font-semibold text-[#414141] mb-2">
+            <label htmlFor="modal-new-pwd-flow" className="block text-xs font-semibold text-foreground mb-2">
               New password
             </label>
             <div className="relative">
@@ -399,23 +393,23 @@ export function ChangePasswordFlow({ userEmail, onClose, onSuccess, onStepChange
                   if (newPasswordError) setNewPasswordError(null)
                 }}
                 placeholder="At least 8 characters"
-                className={`w-full rounded-xl border bg-white px-4 py-2.5 pr-11 text-xs text-[#414141] placeholder:text-[#A0A09B] transition-all focus:outline-none ${
+                className={`w-full rounded-xl border bg-white px-4 py-2.5 pr-11 text-xs text-foreground placeholder:text-[#A0A09B] transition-all focus:outline-none ${
                   newPasswordError
                     ? 'border-red-500 focus:ring-1 focus:ring-red-500'
-                    : 'border-[#DCDBD5] focus:border-[#718619] focus:ring-1 focus:ring-[#718619]'
+                    : 'border-border focus:border-primary focus:ring-1 focus:ring-primary'
                 }`}
               />
               <button
                 type="button"
                 onClick={() => setShowNewPassword((prev) => !prev)}
-                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[#7C7D74] hover:text-[#414141] transition-colors cursor-pointer"
+                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-text-email hover:text-foreground transition-colors cursor-pointer"
                 aria-label={showNewPassword ? 'Hide password' : 'Show password'}
               >
                 {showNewPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
               </button>
             </div>
             {newPasswordError && (
-              <p className="text-[12px] text-red-600 font-medium mt-1.5 flex items-center gap-1.5 animate-in fade-in duration-150">
+              <p className="text-xs text-red-600 font-medium mt-1.5 flex items-center gap-1.5 animate-in fade-in duration-150">
                 <AlertCircle className="h-3.5 w-3.5 shrink-0" />
                 <span>{newPasswordError}</span>
               </p>
@@ -424,7 +418,7 @@ export function ChangePasswordFlow({ userEmail, onClose, onSuccess, onStepChange
 
           {/* Confirm Password Field */}
           <div>
-            <label htmlFor="modal-confirm-pwd-flow" className="block text-xs font-semibold text-[#414141] mb-2">
+            <label htmlFor="modal-confirm-pwd-flow" className="block text-xs font-semibold text-foreground mb-2">
               Confirm new password
             </label>
             <div className="relative">
@@ -437,23 +431,23 @@ export function ChangePasswordFlow({ userEmail, onClose, onSuccess, onStepChange
                   if (confirmPasswordError) setConfirmPasswordError(null)
                 }}
                 placeholder="Repeat new password"
-                className={`w-full rounded-xl border bg-white px-4 py-2.5 pr-11 text-xs text-[#414141] placeholder:text-[#A0A09B] transition-all focus:outline-none ${
+                className={`w-full rounded-xl border bg-white px-4 py-2.5 pr-11 text-xs text-foreground placeholder:text-[#A0A09B] transition-all focus:outline-none ${
                   confirmPasswordError
                     ? 'border-red-500 focus:ring-1 focus:ring-red-500'
-                    : 'border-[#DCDBD5] focus:border-[#718619] focus:ring-1 focus:ring-[#718619]'
+                    : 'border-border focus:border-primary focus:ring-1 focus:ring-primary'
                 }`}
               />
               <button
                 type="button"
                 onClick={() => setShowConfirmPassword((prev) => !prev)}
-                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[#7C7D74] hover:text-[#414141] transition-colors cursor-pointer"
+                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-text-email hover:text-foreground transition-colors cursor-pointer"
                 aria-label={showConfirmPassword ? 'Hide password' : 'Show password'}
               >
                 {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
               </button>
             </div>
             {confirmPasswordError && (
-              <p className="text-[12px] text-red-600 font-medium mt-1.5 flex items-center gap-1.5 animate-in fade-in duration-150">
+              <p className="text-xs text-red-600 font-medium mt-1.5 flex items-center gap-1.5 animate-in fade-in duration-150">
                 <AlertCircle className="h-3.5 w-3.5 shrink-0" />
                 <span>{confirmPasswordError}</span>
               </p>
@@ -461,22 +455,22 @@ export function ChangePasswordFlow({ userEmail, onClose, onSuccess, onStepChange
           </div>
 
           {/* Password Requirements Checklist from Design */}
-          <div className="rounded-xl bg-white p-3.5 border border-[#DCDBD5]/80 space-y-1.5 text-[12px]">
-            <p className="font-semibold text-[#414141] mb-1">Password must contain:</p>
-            <div className={`flex items-center gap-2 ${hasMinLength ? 'text-[#718619] font-medium' : 'text-[#7C7D74]'}`}>
-              <div className={`h-1.5 w-1.5 rounded-full ${hasMinLength ? 'bg-[#718619]' : 'bg-[#DCDBD5]'}`} />
+          <div className="rounded-xl bg-white p-3.5 border border-border/80 space-y-1.5 text-xs">
+            <p className="font-semibold text-foreground mb-1">Password must contain:</p>
+            <div className={`flex items-center gap-2 ${hasMinLength ? 'text-primary font-medium' : 'text-text-email'}`}>
+              <div className={`h-1.5 w-1.5 rounded-full ${hasMinLength ? 'bg-primary' : 'bg-border'}`} />
               <span>At least 8 characters</span>
             </div>
-            <div className={`flex items-center gap-2 ${hasUpperAndLower ? 'text-[#718619] font-medium' : 'text-[#7C7D74]'}`}>
-              <div className={`h-1.5 w-1.5 rounded-full ${hasUpperAndLower ? 'bg-[#718619]' : 'bg-[#DCDBD5]'}`} />
+            <div className={`flex items-center gap-2 ${hasUpperAndLower ? 'text-primary font-medium' : 'text-text-email'}`}>
+              <div className={`h-1.5 w-1.5 rounded-full ${hasUpperAndLower ? 'bg-primary' : 'bg-border'}`} />
               <span>Uppercase & lowercase letters</span>
             </div>
-            <div className={`flex items-center gap-2 ${hasNumber ? 'text-[#718619] font-medium' : 'text-[#7C7D74]'}`}>
-              <div className={`h-1.5 w-1.5 rounded-full ${hasNumber ? 'bg-[#718619]' : 'bg-[#DCDBD5]'}`} />
+            <div className={`flex items-center gap-2 ${hasNumber ? 'text-primary font-medium' : 'text-text-email'}`}>
+              <div className={`h-1.5 w-1.5 rounded-full ${hasNumber ? 'bg-primary' : 'bg-border'}`} />
               <span>At least one number (0-9)</span>
             </div>
-            <div className={`flex items-center gap-2 ${hasSpecialChar ? 'text-[#718619] font-medium' : 'text-[#7C7D74]'}`}>
-              <div className={`h-1.5 w-1.5 rounded-full ${hasSpecialChar ? 'bg-[#718619]' : 'bg-[#DCDBD5]'}`} />
+            <div className={`flex items-center gap-2 ${hasSpecialChar ? 'text-primary font-medium' : 'text-text-email'}`}>
+              <div className={`h-1.5 w-1.5 rounded-full ${hasSpecialChar ? 'bg-primary' : 'bg-border'}`} />
               <span>At least one special character (!@#$%^&*)</span>
             </div>
           </div>
@@ -487,14 +481,14 @@ export function ChangePasswordFlow({ userEmail, onClose, onSuccess, onStepChange
               type="button"
               onClick={() => setStep('otp')}
               disabled={isLoading}
-              className="rounded-xl border border-[#DCDBD5] bg-white px-5 py-2.5 text-xs font-semibold text-[#414141] hover:bg-[#F2F1EA] transition-colors cursor-pointer disabled:opacity-50"
+              className="rounded-xl border border-border bg-white px-5 py-2.5 text-xs font-semibold text-foreground hover:bg-[#F2F1EA] transition-colors cursor-pointer disabled:opacity-50"
             >
               Back
             </button>
             <button
               type="submit"
               disabled={isLoading}
-              className="rounded-xl bg-[#566811] px-6 py-2.5 text-xs font-bold text-white shadow-xs hover:bg-[#46550e] active:scale-[0.99] transition-all cursor-pointer disabled:opacity-50"
+              className="rounded-xl bg-brand-700 px-6 py-2.5 text-xs font-bold text-white shadow-xs hover:bg-[#46550e] active:scale-[0.99] transition-all cursor-pointer disabled:opacity-50"
             >
               {isLoading ? 'Saving...' : 'Save password'}
             </button>
@@ -507,11 +501,11 @@ export function ChangePasswordFlow({ userEmail, onClose, onSuccess, onStepChange
   // RENDER: STEP 3 - SUCCESS / YOU ARE ALL SET!
   return (
     <div className="text-center flex flex-col items-center animate-in fade-in zoom-in-95 duration-200">
-      <div className="flex h-14 w-14 items-center justify-center rounded-full bg-[#E5ECC4] text-[#566811] mb-3.5 shadow-xs">
+      <div className="flex h-14 w-14 items-center justify-center rounded-full bg-brand-100 text-brand-700 mb-3.5 shadow-xs">
         <CheckCircle2 className="h-8 w-8" />
       </div>
-      <h3 className="text-xl font-bold text-[#414141]">You are all set!</h3>
-      <p className="text-xs text-[#7C7D74] mt-1.5 max-w-sm">
+      <h3 className="text-xl font-bold text-foreground">You are all set!</h3>
+      <p className="text-xs text-text-email mt-1.5 max-w-sm">
         Your password has been changed successfully. You can now use your new password next time you sign in.
       </p>
 
@@ -521,7 +515,7 @@ export function ChangePasswordFlow({ userEmail, onClose, onSuccess, onStepChange
           handleResetFlow()
           if (onClose) onClose()
         }}
-        className="mt-6 rounded-xl bg-[#566811] px-7 py-2.5 text-xs font-bold text-white shadow-xs hover:bg-[#46550e] active:scale-[0.99] transition-all cursor-pointer"
+        className="mt-6 rounded-xl bg-brand-700 px-7 py-2.5 text-xs font-bold text-white shadow-xs hover:bg-[#46550e] active:scale-[0.99] transition-all cursor-pointer"
       >
         Done
       </button>

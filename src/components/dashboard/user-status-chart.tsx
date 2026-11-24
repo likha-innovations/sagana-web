@@ -28,7 +28,7 @@ export function UserStatusChart({ data }: UserStatusChartProps) {
                 <h2 className="text-base font-bold leading-none text-foreground">
                     Operator accounts
                 </h2>
-                <p className="text-[12px] font-medium leading-[1.4] text-foreground">
+                <p className="text-xs font-medium leading-[1.4] text-foreground">
                     {total} total operator accounts
                 </p>
             </div>
@@ -78,14 +78,14 @@ export function UserStatusChart({ data }: UserStatusChartProps) {
                         <span className="text-[29px] font-bold leading-none text-foreground">
                             {total}
                         </span>
-                        <span className="text-[12px] font-medium leading-[1.4] text-foreground">
+                        <span className="text-xs font-medium leading-[1.4] text-foreground">
                             accounts
                         </span>
                     </div>
                 </div>
             </div>
 
-            <div className="flex items-start justify-between">
+            <div className="flex flex-wrap items-start justify-between gap-3">
                 {data.map((d) => (
                     <div key={d.name} className="flex flex-col gap-2">
                         <div className="flex items-center gap-2">
@@ -93,7 +93,7 @@ export function UserStatusChart({ data }: UserStatusChartProps) {
                                 className="inline-block h-2.5 w-2.5 shrink-0 rounded-[3px]"
                                 style={{ backgroundColor: d.color }}
                             />
-                            <span className="text-[12px] font-medium leading-[1.4] text-foreground">
+                            <span className="text-xs font-medium leading-[1.4] text-foreground">
                                 {d.name}
                             </span>
                         </div>

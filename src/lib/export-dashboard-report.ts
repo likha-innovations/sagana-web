@@ -29,7 +29,7 @@ export function exportDashboardReport({
     timeStyle: 'short',
   })
 
-  // 1. Report Header Banner
+
   let currentY = addReportHeader(doc, {
     title: 'Executive Dashboard Report',
     subtitle: 'SOLID WASTE MANAGEMENT & COMPOST MONITORING SYSTEM',
@@ -62,7 +62,7 @@ export function exportDashboardReport({
     margin: { left: 14, right: 14, top: 14, bottom: 16 },
   }
 
-  // 2. Section 1: Key Performance Indicators (KPIs)
+
   doc.setFont('helvetica', 'bold')
   doc.setFontSize(9.5)
   doc.setTextColor(...SAGANA_BRAND.primaryDark)
@@ -89,14 +89,14 @@ export function exportDashboardReport({
 
   currentY = getLastAutoTableFinalY(doc) + 8
 
-  // Check if Section 2 and 3 fit on page 1, else add page
+
   const pageHeight = doc.internal.pageSize.getHeight()
   if (currentY + 50 > pageHeight - 20) {
     doc.addPage()
     currentY = 20
   }
 
-  // 3. Section 2: Active Batches by Stabilization Phase
+
   const totalActiveBatches = phaseData.reduce((sum, p) => sum + p.value, 0)
   doc.setFont('helvetica', 'bold')
   doc.setFontSize(9.5)
@@ -111,7 +111,7 @@ export function exportDashboardReport({
     return [phase.name, String(phase.value), share]
   })
 
-  // Add Summary Total row
+
   phaseRows.push(['Total Active Batches', String(totalActiveBatches), '100.0%'])
 
   autoTable(doc, {
@@ -121,7 +121,7 @@ export function exportDashboardReport({
     body: phaseRows,
     theme: 'striped',
     didParseCell: (data) => {
-      // Bold the total summary row
+
       if (data.row.index === phaseRows.length - 1) {
         data.cell.styles.fontStyle = 'bold'
         data.cell.styles.fillColor = [241, 245, 249]
@@ -136,7 +136,7 @@ export function exportDashboardReport({
     currentY = 20
   }
 
-  // 4. Section 3: Operator Accounts Distribution
+
   const totalOperators = userStatusData.reduce((sum, u) => sum + u.value, 0)
   doc.setFont('helvetica', 'bold')
   doc.setFontSize(9.5)
@@ -169,7 +169,7 @@ export function exportDashboardReport({
 
   currentY = getLastAutoTableFinalY(doc) + 8
 
-  // 5. Section 4: Recently Completed Batches
+
   if (currentY + 45 > pageHeight - 20) {
     doc.addPage()
     currentY = 20
@@ -222,9 +222,9 @@ export function exportDashboardReport({
     showHead: 'everyPage',
   })
 
-  // Footers on all generated pages
+
   addReportFooters(doc, 'Executive Dashboard Report')
 
-  // Automatically view in next tab in the browser
+
   openPdfInNewTab(doc, 'SAGANA - Executive Dashboard Report')
 }

@@ -16,7 +16,15 @@ export const compostingPhaseSchema = z.object({
 })
 export type CompostingPhase = z.infer<typeof compostingPhaseSchema>
 
-// Direct Prisma-aligned CompostBatch schema matching sagana-mobile
+export const batchTemperatureReadingSchema = z.object({
+  day: z.number().optional(),
+  timestamp: z.string().optional(),
+  temperature: z.number().optional(),
+  temp: z.number().optional(),
+})
+export type BatchTemperatureReading = z.infer<typeof batchTemperatureReadingSchema>
+
+
 export const compostBatchSchema = z.object({
   id: z.string(),
   machineId: z.string(),
@@ -30,10 +38,11 @@ export const compostBatchSchema = z.object({
   machineName: z.string().optional(),
   feedstocks: z.array(batchFeedstockSchema).optional().default([]),
   compostingPhases: z.array(compostingPhaseSchema).optional().default([]),
+  temperatureLogs: z.array(batchTemperatureReadingSchema).optional().default([]),
 })
 export type CompostBatch = z.infer<typeof compostBatchSchema>
 
-// Batch alias pointing directly to the domain CompostBatch
+
 export type Batch = CompostBatch
 export type BatchPhase = 'Cooling' | 'Thermophilic' | 'Mesophilic' | 'Completed'
 
@@ -61,4 +70,3 @@ export function formatBatchDate(dateStr: string): string {
     ? 'Unknown date'
     : d.toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' })
 }
-
