@@ -6,6 +6,7 @@ import {
   addReportFooters,
   openPdfInNewTab,
   getLastAutoTableFinalY,
+  PDF_MARGIN,
   SAGANA_BRAND,
   autoTable,
 } from './pdf-utils'
@@ -59,14 +60,14 @@ export function exportDashboardReport({
     },
     tableLineColor: SAGANA_BRAND.border,
     tableLineWidth: 0.1,
-    margin: { left: 14, right: 14, top: 14, bottom: 16 },
+    margin: { left: PDF_MARGIN, right: PDF_MARGIN, top: 16, bottom: 18 },
   }
 
 
   doc.setFont('helvetica', 'bold')
   doc.setFontSize(9.5)
   doc.setTextColor(...SAGANA_BRAND.primaryDark)
-  doc.text('1. KEY PERFORMANCE INDICATORS (KPIs)', 14, currentY)
+  doc.text('1. KEY PERFORMANCE INDICATORS (KPIs)', PDF_MARGIN, currentY)
   currentY += 2
 
   const kpiRows = kpis.map((kpi) => {
@@ -101,7 +102,7 @@ export function exportDashboardReport({
   doc.setFont('helvetica', 'bold')
   doc.setFontSize(9.5)
   doc.setTextColor(...SAGANA_BRAND.primaryDark)
-  doc.text('2. ACTIVE BATCHES BY STABILIZATION PHASE', 14, currentY)
+  doc.text('2. ACTIVE BATCHES BY STABILIZATION PHASE', PDF_MARGIN, currentY)
   currentY += 2
 
   const phaseRows = phaseData.map((phase) => {
@@ -141,7 +142,7 @@ export function exportDashboardReport({
   doc.setFont('helvetica', 'bold')
   doc.setFontSize(9.5)
   doc.setTextColor(...SAGANA_BRAND.primaryDark)
-  doc.text('3. OPERATOR ACCOUNTS DISTRIBUTION', 14, currentY)
+  doc.text('3. OPERATOR ACCOUNTS DISTRIBUTION', PDF_MARGIN, currentY)
   currentY += 2
 
   const operatorRows = userStatusData.map((status) => {
@@ -178,14 +179,14 @@ export function exportDashboardReport({
   doc.setFont('helvetica', 'bold')
   doc.setFontSize(9.5)
   doc.setTextColor(...SAGANA_BRAND.primaryDark)
-  doc.text('4. RECENTLY COMPLETED BATCHES', 14, currentY)
+  doc.text('4. RECENTLY COMPLETED BATCHES', PDF_MARGIN, currentY)
 
   doc.setFont('helvetica', 'normal')
   doc.setFontSize(7.5)
   doc.setTextColor(...SAGANA_BRAND.textMuted)
   doc.text(
     `Showing ${recentBatches.length} of ${totalThisMonth || recentBatches.length} batches completed this month`,
-    14,
+    PDF_MARGIN,
     currentY + 4
   )
   currentY += 6
