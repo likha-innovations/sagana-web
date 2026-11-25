@@ -1,12 +1,10 @@
 import { createContext, useContext, useState, useEffect, useCallback, useMemo, type ReactNode } from 'react'
 import { useAuth, useUser, useClerk } from '@clerk/react'
-import { useSignIn, useSignUp } from '@clerk/react/legacy'
+import { useSignIn } from '@clerk/react/legacy'
 import {
   type User,
   type UserRole,
-  type SignUpInput,
   signInSchema,
-  signUpSchema,
 } from '@/types/auth'
 import { userApi } from '@/api/user.api'
 import { setAuthTokenGetter } from '@/lib/auth-token'
@@ -20,8 +18,7 @@ interface AuthContextType {
   user: User | null
   role: UserRole
   getToken: () => Promise<string | null>
-  signIn: (email: string, password: string, keepSignedIn?: boolean) => Promise<void>
-  signUp: (params: SignUpInput) => Promise<void>
+  signIn: (email: string, password: string) => Promise<void>
   signOut: () => Promise<void>
 }
 
@@ -32,36 +29,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const { isSignedIn, isLoaded: authLoaded, signOut: clerkSignOut, getToken } = useAuth()
   const { user: clerkUser, isLoaded: userLoaded } = useUser()
   const { signIn: clerkSignIn, setActive: setSignInActive, isLoaded: signInLoaded } = useSignIn()
-  const { signUp: clerkSignUp } = useSignUp()
 
   const [isActionLoading, setIsActionLoading] = useState(false)
   const [dbUser, setDbUser] = useState<User | null>(null)
   const [isProfileFetched, setIsProfileFetched] = useState(false)
 
-
-  useEffect(() => {
-    if (!authLoaded || !isSignedIn) {
-      return
-    }
-
-    const keepSignedInStored = localStorage.getItem('sagana_keep_signed_in') === 'true'
-    const sessionActiveStored = sessionStorage.getItem('sagana_session_active') === 'true'
-
-    if (!keepSignedInStored && !sessionActiveStored) {
-      logger.info('Session ended because Keep me signed in was not active and browser closed')
-      void clerkSignOut().then(() => {
-        setDbUser(null)
-        localStorage.removeItem('sagana_keep_signed_in')
-        sessionStorage.removeItem('sagana_session_active')
-      })
-    }
-  }, [authLoaded, isSignedIn, clerkSignOut])
-
-
   useEffect(() => {
     setAuthTokenGetter(getToken)
   }, [getToken])
-
 
   useEffect(() => {
     let isMounted = true
@@ -93,7 +68,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const isLoaded =
     authLoaded && userLoaded && signInLoaded && !isActionLoading && (!isSignedIn || isProfileFetched)
 
-
   const user: User | null = useMemo(() => {
     if (!clerkUser) return null
     const unsafeMeta = (clerkUser.unsafeMetadata || {}) as Record<string, unknown>
@@ -119,8 +93,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const role: UserRole = user?.role || 'operator'
 
   const signIn = useCallback(
-    async (email: string, password: string, keepSignedIn = false) => {
-      logger.info(`Initiating custom sign in for ${email}`)
+    async (email: string, password: string) => {
+      logger.info(`Initiating sign in for ${email}`)
       setIsActionLoading(true)
 
       try {
@@ -135,7 +109,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           password: validated.password,
         })
 
-
         if (attempt.status === 'needs_first_factor') {
           attempt = await clerkSignIn.attemptFirstFactor({
             strategy: 'password',
@@ -146,17 +119,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (attempt.status === 'complete') {
           logger.info(`Sign in complete for ${email}`)
 
-
-          if (keepSignedIn) {
-            localStorage.setItem('sagana_keep_signed_in', 'true')
-            sessionStorage.removeItem('sagana_session_active')
-          } else {
-            localStorage.removeItem('sagana_keep_signed_in')
-            sessionStorage.setItem('sagana_session_active', 'true')
-          }
-
           await setSignInActive({ session: attempt.createdSessionId })
-
 
           let verifiedRole: string | null = null
 
@@ -183,8 +146,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             logger.warn(`User ${email} has role '${verifiedRole}', not 'admin'. Rejecting sign-in.`)
             await clerkSignOut()
             setDbUser(null)
-            localStorage.removeItem('sagana_keep_signed_in')
-            sessionStorage.removeItem('sagana_session_active')
             throw new Error('Incorrect credentials, try again')
           }
 
@@ -205,50 +166,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [clerkSignIn, setSignInActive, clerk, getToken, clerkSignOut]
   )
 
-  const signUp = useCallback(
-    async (params: SignUpInput) => {
-      logger.info(`Initiating custom sign up for ${params.email}`)
-      setIsActionLoading(true)
-
-      try {
-        if (!clerkSignUp) {
-          throw new Error('Sign-up service is currently initializing. Please try again.')
-        }
-
-        const validated = signUpSchema.parse(params)
-
-        const nameParts = validated.fullName.trim().split(' ')
-        const firstName = nameParts[0] || validated.fullName
-        const lastName = nameParts.slice(1).join(' ') || ''
-
-        await clerkSignUp.create({
-          emailAddress: validated.email,
-          password: validated.password,
-          firstName,
-          lastName,
-          unsafeMetadata: {
-            role: validated.role,
-            contactNumber: validated.contactNumber?.trim() || null,
-            location: validated.location?.trim() || null,
-          },
-        })
-
-        logger.info(`Sign up successful for ${params.email}`)
-      } catch (err: unknown) {
-        logger.error(`Sign up error for ${params.email}`, err)
-        throw err
-      } finally {
-        setIsActionLoading(false)
-      }
-    },
-    [clerkSignUp]
-  )
-
   const signOut = useCallback(async () => {
     logger.info('Signing out active user session')
     try {
-      localStorage.removeItem('sagana_keep_signed_in')
-      sessionStorage.removeItem('sagana_session_active')
       await clerkSignOut()
       setDbUser(null)
     } catch (err) {
@@ -265,10 +185,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       role,
       getToken,
       signIn,
-      signUp,
       signOut,
     }),
-    [isSignedIn, isLoaded, user, role, getToken, signIn, signUp, signOut]
+    [isSignedIn, isLoaded, user, role, getToken, signIn, signOut]
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

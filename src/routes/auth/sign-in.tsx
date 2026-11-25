@@ -15,7 +15,6 @@ function SaganaLogo({ className = '' }: { className?: string }) {
   )
 }
 
-
 const ERROR_RED = '#D92D20'
 
 export function SignInPage() {
@@ -29,21 +28,9 @@ export function SignInPage() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [keepSignedIn, setKeepSignedIn] = useState(false)
 
-
-  const [failedAttempts, setFailedAttempts] = useState<number>(() => {
-    try {
-      const stored = sessionStorage.getItem('sagana_failed_sign_in_attempts')
-      return stored ? parseInt(stored, 10) || 0 : 0
-    } catch {
-      return 0
-    }
-  })
-
-
   const initialError = searchParams.get('error') === 'unauthorized' ? 'Incorrect credentials, try again' : null
   const [errorMessage, setErrorMessage] = useState<string | null>(initialError)
   const [hasError, setHasError] = useState<boolean>(Boolean(initialError))
-
 
   if (isLoaded && isSignedIn) {
     return <Navigate to="/admin" replace />
@@ -51,16 +38,6 @@ export function SignInPage() {
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault()
-
-
-    if (failedAttempts >= 5) {
-      const msg = 'Too many failed attempts, you may try again later'
-      setErrorMessage(msg)
-      setHasError(true)
-      toast.error(msg)
-      return
-    }
-
 
     if (!email.trim() || !password) {
       const msg = 'Please enter your credentials'
@@ -75,28 +52,11 @@ export function SignInPage() {
     setHasError(false)
 
     try {
-      await signIn(email.trim(), password, keepSignedIn)
-      try {
-        sessionStorage.removeItem('sagana_failed_sign_in_attempts')
-      } catch { /* noop */ }
-      setFailedAttempts(0)
+      await signIn(email.trim(), password)
       toast.success('Signed in successfully.')
       navigate('/admin')
     } catch (err: unknown) {
-      const nextCount = failedAttempts + 1
-      setFailedAttempts(nextCount)
-      try {
-        sessionStorage.setItem('sagana_failed_sign_in_attempts', String(nextCount))
-      } catch { /* noop */ }
       setHasError(true)
-
-
-      if (nextCount >= 5) {
-        const msg = 'Too many failed attempts, you may try again later'
-        setErrorMessage(msg)
-        toast.error(msg)
-        return
-      }
 
       const rawMessage = (err as Error)?.message || ''
       if (/too many/i.test(rawMessage)) {
@@ -120,7 +80,6 @@ export function SignInPage() {
   const passwordInputClassName = hasError
     ? 'border-2 border-red-500 placeholder:text-red-400 text-red-600 focus:border-red-500 focus:ring-1 focus:ring-red-500/20'
     : 'border border-border placeholder:text-text-secondary text-foreground focus:border-primary focus:ring-1 focus:ring-primary/20'
-
 
   const errorBorderStyle = hasError ? { borderColor: ERROR_RED } : undefined
 

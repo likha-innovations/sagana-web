@@ -8,7 +8,6 @@ import { OperatorsPage } from '@/components/operator-accounts/operators-page'
 import { SignInPage } from '@/routes/auth/sign-in'
 import { ForgotPasswordPage } from '@/routes/auth/forgot-password'
 import { OperatorDetailPage } from '@/components/operator-accounts/operator-detail-page'
-import { SettingsPage } from '@/components/settings/settings-page'
 import { ErrorBoundary } from '@/components/ui/error-boundary'
 
 const adminRoutes = [
@@ -18,7 +17,6 @@ const adminRoutes = [
   { path: '/admin/operators', element: <Navigate to="/admin/operator-accounts" replace /> },
   { path: '/admin/machines', element: <MachinesPage /> },
   { path: '/admin/compost-batches', element: <CompostBatchesPage /> },
-  { path: '/admin/settings', element: <SettingsPage /> },
 ]
 
 const publicRoutes = [
@@ -33,7 +31,7 @@ const fallbackRoutes = [
 ]
 
 function AuthGuard() {
-  const { isLoaded, isSignedIn, signOut } = useAuthContext()
+  const { isLoaded, isSignedIn } = useAuthContext()
 
   if (!isLoaded) {
     return (
@@ -44,14 +42,6 @@ function AuthGuard() {
   }
 
   if (!isSignedIn) {
-    return <Navigate to="/sign-in" replace />
-  }
-
-
-  const keepSignedInStored = localStorage.getItem('sagana_keep_signed_in') === 'true'
-  const sessionActiveStored = sessionStorage.getItem('sagana_session_active') === 'true'
-  if (!keepSignedInStored && !sessionActiveStored) {
-    void signOut()
     return <Navigate to="/sign-in" replace />
   }
 

@@ -30,32 +30,6 @@ export const signInSchema = z.object({
 
 export type SignInInput = z.infer<typeof signInSchema>
 
-export const signUpSchema = z.object({
-  fullName: z
-    .string()
-    .trim()
-    .min(2, 'Full name must be at least 2 characters'),
-  email: z
-    .string()
-    .trim()
-    .min(1, 'Email is required')
-    .email('Please enter a valid email address'),
-  password: z
-    .string()
-    .min(8, 'Password must be at least 8 characters'),
-  role: z.enum(['operator', 'admin']),
-  contactNumber: z
-    .string()
-    .trim()
-    .optional(),
-  location: z
-    .string()
-    .trim()
-    .optional(),
-})
-
-export type SignUpInput = z.infer<typeof signUpSchema>
-
 export const updateProfileSchema = z.object({
   fullName: z.string().min(2, 'Full name must be at least 2 characters').optional(),
   contactNumber: z.string().optional(),

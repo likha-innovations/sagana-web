@@ -11,7 +11,6 @@ import {
   ShieldCheck,
 } from 'lucide-react'
 import saganaLogo from '@/assets/sagana-logo.png'
-import { userApi } from '@/api/user.api'
 
 function SaganaLogo({ className = '' }: { className?: string }) {
   return (
@@ -26,6 +25,7 @@ function SaganaLogo({ className = '' }: { className?: string }) {
 type ForgotStep = 'email' | 'otp' | 'new_password' | 'success'
 
 const ERROR_RED = '#D92D20'
+const CLERK_PENDING_MESSAGE = 'Password reset will be available once Clerk reset flow is wired.'
 
 export function ForgotPasswordPage() {
   const navigate = useNavigate()
@@ -34,46 +34,34 @@ export function ForgotPasswordPage() {
   const initialEmail = searchParams.get('email') || ''
   const [step, setStep] = useState<ForgotStep>('email')
 
-
   const [email, setEmail] = useState(initialEmail)
   const [emailError, setEmailError] = useState<string | null>(null)
-  const [isSendingOtp, setIsSendingOtp] = useState(false)
-
 
   const [otp, setOtp] = useState<string[]>(['', '', '', '', '', ''])
   const [otpError, setOtpError] = useState<string | null>(null)
-  const [resendCooldown, setResendCooldown] = useState(0)
-  const [isVerifyingOtp, setIsVerifyingOtp] = useState(false)
   const otpInputRefs = useRef<(HTMLInputElement | null)[]>([])
-
 
   const [newPassword, setNewPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [showNewPassword, setShowNewPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [passwordError, setPasswordError] = useState<string | null>(null)
-  const [isResetting, setIsResetting] = useState(false)
 
-
-  useEffect(() => {
-    if (resendCooldown <= 0) return
-    const timer = setInterval(() => {
-      setResendCooldown((prev) => prev - 1)
-    }, 1000)
-    return () => clearInterval(timer)
-  }, [resendCooldown])
-
+  const isSendingOtp = false
+  const isVerifyingOtp = false
+  const isResetting = false
+  const resendCooldown = 0
 
   useEffect(() => {
     if (step === 'otp') {
-      setTimeout(() => {
+      const timer = setTimeout(() => {
         otpInputRefs.current[0]?.focus()
       }, 100)
+      return () => clearTimeout(timer)
     }
   }, [step])
 
-
-  const handleEmailSubmit = async (e: FormEvent<HTMLFormElement>) => {
+  const handleEmailSubmit = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault()
 
     const trimmed = email.trim()
@@ -87,50 +75,14 @@ export function ForgotPasswordPage() {
       return
     }
 
-    setIsSendingOtp(true)
     setEmailError(null)
-
-    try {
-      await userApi.sendForgotPasswordOtp(trimmed)
-      toast.success(`Verification code sent to ${trimmed}`)
-      setResendCooldown(60)
-      setOtp(['', '', '', '', '', ''])
-      setOtpError(null)
-      setStep('otp')
-    } catch {
-      toast.info('Verification code sent to your email.')
-      setResendCooldown(60)
-      setOtp(['', '', '', '', '', ''])
-      setOtpError(null)
-      setStep('otp')
-    } finally {
-      setIsSendingOtp(false)
-    }
+    toast.info(CLERK_PENDING_MESSAGE)
   }
 
-
-  const handleResendOtp = async () => {
-    if (resendCooldown > 0 || isSendingOtp) return
-
-    setIsSendingOtp(true)
+  const handleResendOtp = () => {
     setOtpError(null)
-
-    try {
-      await userApi.sendForgotPasswordOtp(email.trim())
-      toast.success('A new one-time code has been sent.')
-      setResendCooldown(60)
-      setOtp(['', '', '', '', '', ''])
-      otpInputRefs.current[0]?.focus()
-    } catch {
-      toast.info('A new one-time code has been sent.')
-      setResendCooldown(60)
-      setOtp(['', '', '', '', '', ''])
-      otpInputRefs.current[0]?.focus()
-    } finally {
-      setIsSendingOtp(false)
-    }
+    toast.info(CLERK_PENDING_MESSAGE)
   }
-
 
   const handleOtpChange = (index: number, e: ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value
@@ -166,8 +118,7 @@ export function ForgotPasswordPage() {
     }
   }
 
-
-  const handleOtpSubmit = async (e: FormEvent<HTMLFormElement>) => {
+  const handleOtpSubmit = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault()
 
     const code = otp.join('').trim()
@@ -176,19 +127,11 @@ export function ForgotPasswordPage() {
       return
     }
 
-    setIsVerifyingOtp(true)
     setOtpError(null)
-
-    try {
-      await userApi.verifyForgotPasswordOtp(email.trim(), code)
-    } catch { /* noop */ } finally {
-      setIsVerifyingOtp(false)
-      setStep('new_password')
-    }
+    toast.info(CLERK_PENDING_MESSAGE)
   }
 
-
-  const handlePasswordSubmit = async (e: FormEvent<HTMLFormElement>) => {
+  const handlePasswordSubmit = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault()
 
     if (!newPassword || !confirmPassword) {
@@ -206,22 +149,9 @@ export function ForgotPasswordPage() {
       return
     }
 
-    setIsResetting(true)
     setPasswordError(null)
-
-    try {
-      const code = otp.join('').trim()
-      await userApi.resetForgotPassword({
-        email: email.trim(),
-        code,
-        newPassword,
-      })
-    } catch { /* noop */ } finally {
-      setIsResetting(false)
-      setStep('success')
-    }
+    toast.info(CLERK_PENDING_MESSAGE)
   }
-
 
   const handleBack = () => {
     if (step === 'email') {
@@ -385,7 +315,7 @@ export function ForgotPasswordPage() {
                 </div>
 
                 <div className="text-xs text-text-email select-none">
-                  Didn't receive any code?{' '}
+                  Didn&apos;t receive any code?{' '}
                   {resendCooldown > 0 ? (
                     <span className="font-semibold text-text-email">
                       Resend ({Math.floor(resendCooldown / 60)}:
@@ -403,7 +333,6 @@ export function ForgotPasswordPage() {
                   )}
                 </div>
 
-                {/* Next Button */}
                 <button
                   id="forgot-otp-submit"
                   type="submit"
@@ -423,9 +352,6 @@ export function ForgotPasswordPage() {
             </div>
           )}
 
-          {/* ══════════════════════════════════════════════════════════ */}
-          {/* STEP 3: Reset password                                     */}
-          {/* ══════════════════════════════════════════════════════════ */}
           {step === 'new_password' && (
             <div className="animate-in fade-in zoom-in-98 duration-200">
               <h1 className="text-foreground font-bold text-2xl sm:text-[28px] leading-tight tracking-tight">
@@ -436,7 +362,6 @@ export function ForgotPasswordPage() {
               </p>
 
               <form onSubmit={handlePasswordSubmit} className="mt-8 space-y-4" noValidate>
-                {/* New Password Input */}
                 <div className="space-y-1.5">
                   <label htmlFor="new-password" className="sr-only">
                     New password
@@ -482,7 +407,6 @@ export function ForgotPasswordPage() {
                   </div>
                 </div>
 
-                {/* Confirm Password Input */}
                 <div className="space-y-1.5">
                   <label htmlFor="confirm-password" className="sr-only">
                     Confirm password
@@ -526,7 +450,6 @@ export function ForgotPasswordPage() {
                   </div>
                 </div>
 
-                {/* Inline Error Message */}
                 {passwordError && (
                   <div
                     role="alert"
@@ -537,7 +460,6 @@ export function ForgotPasswordPage() {
                   </div>
                 )}
 
-                {/* Reset Password Button */}
                 <button
                   id="forgot-password-submit"
                   type="submit"
@@ -557,9 +479,6 @@ export function ForgotPasswordPage() {
             </div>
           )}
 
-          {/* ══════════════════════════════════════════════════════════ */}
-          {/* STEP 4: Success / You are all set!                          */}
-          {/* ══════════════════════════════════════════════════════════ */}
           {step === 'success' && (
             <div className="animate-in fade-in zoom-in-98 duration-200 space-y-6">
               <div className="h-36 rounded-2xl bg-[#F2F1EA] flex flex-col items-center justify-center relative overflow-hidden">
