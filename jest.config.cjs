@@ -8,7 +8,7 @@ module.exports = {
   testMatch: ['<rootDir>/src/tests/**/*.test.ts', '<rootDir>/src/tests/**/*.test.tsx'],
   transform: {
     '^.+\\.tsx?$': [
-      'ts-jest',
+      '<rootDir>/jest.transform.cjs',
       {
         diagnostics: false,
         tsconfig: {

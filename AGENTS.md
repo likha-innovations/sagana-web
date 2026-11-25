@@ -40,11 +40,11 @@ The web UI craftsmanship skills live in `.agents/skills/`:
 - `src/api/`: Typed REST wrappers (`api.get`, `api.patch`, `api.delete`). No raw `axios`; uses typed `fetch` wrapper.
 - `src/hooks/`: TanStack Query v5 hooks with structured query key factories (`*Keys.all`, `*Keys.list()`, `*Keys.stats`).
 - `src/components/`: Feature modules and domain presentation (`compost-batches/`, `machines/`, `operator-accounts/`, `dashboard/`, `settings/`).
-- `src/components/ui/`: Base primitives (Radix UI + CVA).
+- `src/components/ui/`: Base primitives (Tailwind CSS).
 - `src/context/`: Auth state (`auth-context.tsx`) and WebSocket real-time cache invalidation (`socket-context.tsx`).
 - `src/types/`: Centralized Prisma-aligned Zod schemas and TypeScript models (`batch.ts`, `auth.ts`, `api.ts`, `dashboard.ts`).
 - `src/tests/`: Dedicated Jest unit test suites (`*.test.ts`). Never place tests directly in component folders or name them `*.spec.ts`.
-- `src/lib/`: Utilities (`utils.ts` for `cn()`, `logger.ts` for scoped client logging, `date-range.ts`, `pdf-utils.ts`).
+- `src/lib/`: Utilities (`logger.ts` for scoped client logging, `date-range.ts`, `pdf-utils.ts`).
 
 ## 6. 🧪 Verification Standard
 

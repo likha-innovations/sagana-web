@@ -3,7 +3,7 @@ import { Link, Outlet, useLocation } from 'react-router'
 import { ChevronUp, Cpu, Layers, LayoutDashboard, Menu, Users, X } from 'lucide-react'
 import saganaLogo from '@/assets/sagana-logo.png'
 import { useAuthContext } from '@/context/auth-context'
-import { Button } from '@/ui/button'
+
 import { AccountSettingsModal } from '@/components/settings/settings-modal'
 
 const navLinks = [
@@ -126,15 +126,14 @@ export function AppShell({ children }: { children: ReactNode }) {
 
       <header className="sticky top-0 z-20 flex h-14 items-center justify-between border-b border-border bg-background/90 px-4 backdrop-blur lg:hidden">
         <div className="flex items-center gap-2.5">
-          <Button
-            variant="ghost"
-            size="icon"
+          <button
+            type="button"
             onClick={() => setMobileSidebarOpen(true)}
-            className="h-11 w-11 min-h-11 min-w-11 rounded-lg"
+            className="inline-flex items-center justify-center h-11 w-11 min-h-11 min-w-11 rounded-lg transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring cursor-pointer"
             aria-label="Open sidebar navigation"
           >
             <Menu className="h-5 w-5" />
-          </Button>
+          </button>
           <img src={saganaLogo} alt="Sagana" className="h-6 w-auto" />
         </div>
 
@@ -162,15 +161,14 @@ export function AppShell({ children }: { children: ReactNode }) {
 
           <div className="relative z-50 h-full w-72 max-w-[80vw] bg-background shadow-2xl">
             <div className="absolute right-2 top-2">
-              <Button
-                variant="ghost"
-                size="icon"
+              <button
+                type="button"
                 onClick={closeSidebar}
-                className="h-11 w-11 min-h-11 min-w-11 rounded-lg text-muted-foreground hover:text-foreground"
+                className="inline-flex items-center justify-center h-11 w-11 min-h-11 min-w-11 rounded-lg transition-colors text-muted-foreground hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring cursor-pointer"
                 aria-label="Close sidebar navigation"
               >
                 <X className="h-5 w-5" />
-              </Button>
+              </button>
             </div>
             {sidebarContent}
           </div>
