@@ -1,46 +1,43 @@
-interface MachinesPaginationProps {
+export interface PaginationProps {
   currentPage: number
   totalPages: number
   totalItems: number
   currentCount: number
   pageSize?: number
+  ariaLabel?: string
   onPageChange: (page: number) => void
 }
 
-export function MachinesPagination({
+function getPageNumbers(currentPage: number, totalPages: number): (number | string)[] {
+  if (totalPages <= 5) {
+    return Array.from({ length: totalPages }, (_, i) => i + 1)
+  }
+  if (currentPage <= 3) {
+    return [1, 2, 3, '...', totalPages]
+  }
+  if (currentPage >= totalPages - 2) {
+    return [1, '...', totalPages - 2, totalPages - 1, totalPages]
+  }
+  return [1, '...', currentPage, '...', totalPages]
+}
+
+export function Pagination({
   currentPage,
   totalPages,
   totalItems,
   currentCount,
   pageSize = 10,
+  ariaLabel = 'Table pagination',
   onPageChange,
-}: MachinesPaginationProps) {
-  const getPageNumbers = () => {
-    const pages: (number | string)[] = []
-    if (totalPages <= 5) {
-      for (let i = 1; i <= totalPages; i++) {
-        pages.push(i)
-      }
-    } else {
-      if (currentPage <= 3) {
-        pages.push(1, 2, 3, '...', totalPages)
-      } else if (currentPage >= totalPages - 2) {
-        pages.push(1, '...', totalPages - 2, totalPages - 1, totalPages)
-      } else {
-        pages.push(1, '...', currentPage, '...', totalPages)
-      }
-    }
-    return pages
-  }
-
+}: PaginationProps) {
   const start = totalItems === 0 ? 0 : (currentPage - 1) * pageSize + 1
   const end = Math.min(start + currentCount - 1, totalItems)
   const rangeDisplay =
     totalItems === 0
       ? '0 of 0'
       : start === end
-      ? `${start} of ${totalItems}`
-      : `${start}-${end} of ${totalItems}`
+        ? `${start} of ${totalItems}`
+        : `${start}-${end} of ${totalItems}`
 
   return (
     <footer className="flex flex-wrap items-center justify-between gap-3 pt-1.5 text-xs text-text-email">
@@ -48,7 +45,7 @@ export function MachinesPagination({
         <span>{rangeDisplay}</span>
       </div>
 
-      <nav aria-label="Machines table pagination" className="flex items-center gap-2">
+      <nav aria-label={ariaLabel} className="flex items-center gap-2">
         <button
           type="button"
           disabled={currentPage <= 1}
@@ -63,13 +60,10 @@ export function MachinesPagination({
         </span>
 
         <div className="hidden sm:flex items-center gap-1">
-          {getPageNumbers().map((page, index) => {
+          {getPageNumbers(currentPage, totalPages).map((page, index) => {
             if (page === '...') {
               return (
-                <span
-                  key={`ellipsis-${index}`}
-                  className="px-1 text-text-email select-none"
-                >
+                <span key={`ellipsis-${index}`} className="px-1 text-text-email select-none">
                   ...
                 </span>
               )

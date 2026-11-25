@@ -1,16 +1,24 @@
 import { useState, useCallback } from 'react'
 import { useSearchParams } from 'react-router'
+import { Cpu, Wifi, WifiOff } from 'lucide-react'
 import { toast } from 'sonner'
-import { MachinesHeader } from './machines-header'
-import { MachinesStats } from './machines-stats'
-import { MachinesToolbar } from './machines-toolbar'
+import { PageHeader } from '@/components/ui/page-header'
+import { StatsGrid } from '@/components/ui/stats-grid'
+import { FilterToolbar } from '@/components/ui/filter-toolbar'
+import { Pagination } from '@/components/ui/pagination'
+import { type DropdownOption } from '@/components/ui/custom-dropdown'
 import { MachinesTable } from './machines-table'
-import { MachinesPagination } from './machines-pagination'
 import { MachineInfoModal } from './machine-info-modal'
 import { useMachines, useMachineStats } from '@/hooks/use-machines'
 import { fetchMachines, type Machine } from '@/api/machine.api'
 import { exportMachinesReport } from '@/lib/export-machines-report'
 import { exportMachinesToSheets } from '@/lib/export-sheets'
+
+const MACHINE_STATUS_OPTIONS: DropdownOption[] = [
+  { value: 'all', label: 'All statuses' },
+  { value: 'online', label: 'Online' },
+  { value: 'offline', label: 'Offline' },
+]
 
 export function MachinesPage() {
   const [searchParams, setSearchParams] = useSearchParams()
@@ -133,26 +141,38 @@ export function MachinesPage() {
 
   return (
     <div className="flex flex-col gap-4 w-full">
-      <MachinesHeader filteredMachines={machines} />
+      <PageHeader title="Machines" />
 
-      <MachinesStats
-        registered={stats.registered}
-        online={stats.online}
-        offline={stats.offline}
+      <StatsGrid
+        ariaLabel="Machines Statistics"
+        columnsClassName="grid-cols-2 sm:grid-cols-3"
         isLoading={isLoading}
+        cards={[
+          { label: 'Registered machines', value: stats.registered, icon: Cpu },
+          { label: 'Online machines', value: stats.online, icon: Wifi },
+          { label: 'Offline machines', value: stats.offline, icon: WifiOff },
+        ]}
       />
 
       <section
         aria-label="Machines directory"
         className="flex flex-col gap-3.5 rounded-[20px] bg-white px-4 sm:px-5 pt-4.5 pb-2.5 shadow-card w-full overflow-hidden"
       >
-        <MachinesToolbar
+        <FilterToolbar
           search={searchParam}
           onSearchChange={(val) => updateParams({ search: val, page: 1 })}
+          searchId="machine-search"
+          searchLabel="Search machine"
+          searchPlaceholder="Search a name or an email address.."
           status={statusParam}
           onStatusChange={(val) => updateParams({ status: val, page: 1 })}
+          statusOptions={MACHINE_STATUS_OPTIONS}
+          statusId="machine-status-select"
+          statusAriaLabel="Filter by connection status"
           dateRange={dateRangeParam}
           onDateRangeChange={(val) => updateParams({ dateRange: val, page: 1 })}
+          dateId="machine-date-select"
+          dateAriaLabel="Filter by date registered"
           onExportPdf={handleExportPdf}
           onExportSheets={handleExportSheets}
           isExporting={isExporting}
@@ -169,12 +189,13 @@ export function MachinesPage() {
           />
         </div>
 
-        <MachinesPagination
+        <Pagination
           currentPage={pageParam}
           totalPages={totalPages}
           totalItems={totalItems}
           currentCount={machines.length}
           pageSize={pageSize}
+          ariaLabel="Machines table pagination"
           onPageChange={(page) => updateParams({ page })}
         />
       </section>

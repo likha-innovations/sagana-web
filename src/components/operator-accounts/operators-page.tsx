@@ -1,12 +1,14 @@
 import { useState, useCallback } from 'react'
 import { useSearchParams } from 'react-router'
+import { Archive } from 'lucide-react'
 import { toast } from 'sonner'
 import { useQueryClient } from '@tanstack/react-query'
-import { OverviewHeader } from './overview-header'
+import { PageHeader } from '@/components/ui/page-header'
+import { FilterToolbar } from '@/components/ui/filter-toolbar'
+import { Pagination } from '@/components/ui/pagination'
+import { type DropdownOption } from '@/components/ui/custom-dropdown'
 import { OperatorStats } from './operator-stats'
-import { AccountsToolbar } from './accounts-toolbar'
 import { AccountsTable } from './accounts-table'
-import { AccountsPagination } from './accounts-pagination'
 import { SuspendOperatorModal } from './suspend-operator-modal'
 import { UserInfoModal } from './user-info-modal'
 import { ArchiveSidePanel } from './archive-side-panel'
@@ -25,6 +27,12 @@ import {
 } from '@/api/operator.api'
 import { exportOperatorsReport } from '@/lib/export-operators-report'
 import { exportOperatorsToSheets } from '@/lib/export-sheets'
+
+const OPERATOR_STATUS_OPTIONS: DropdownOption[] = [
+  { value: 'all', label: 'All statuses' },
+  { value: 'active', label: 'Active' },
+  { value: 'suspended', label: 'Suspended' },
+]
 
 export function OperatorAccountsPage() {
   const queryClient = useQueryClient()
@@ -241,7 +249,7 @@ export function OperatorAccountsPage() {
 
   return (
     <div className="flex flex-col gap-4 w-full">
-      <OverviewHeader />
+      <PageHeader title="Operator Accounts" />
 
       <OperatorStats
         total={stats.total}
@@ -256,18 +264,45 @@ export function OperatorAccountsPage() {
         aria-label="Operator directory"
         className="flex flex-col gap-3.5 rounded-[20px] bg-white px-4 sm:px-5 pt-4.5 pb-2.5 shadow-card w-full overflow-hidden"
       >
-        <AccountsToolbar
+        <FilterToolbar
           search={searchParam}
           onSearchChange={(val) => updateParams({ search: val, page: 1 })}
+          searchId="operator-search"
+          searchLabel="Search a name or an email address"
+          searchPlaceholder="Search a name or an email address.."
           status={statusParam}
           onStatusChange={(val) => updateParams({ status: val, page: 1 })}
+          statusOptions={OPERATOR_STATUS_OPTIONS}
+          statusId="status-select"
+          statusAriaLabel="Filter by status"
           dateRange={dateRangeParam}
           onDateRangeChange={(val) => updateParams({ dateRange: val, page: 1 })}
+          dateId="date-range-select"
+          dateAriaLabel="Filter by date joined"
           onExportPdf={handleExportPdf}
           onExportSheets={handleExportSheets}
           isExporting={isExporting}
-          onOpenArchive={() => setIsArchiveOpen(true)}
-          archivedCount={archivedAccounts.length}
+          actions={
+            <button
+              type="button"
+              onClick={() => setIsArchiveOpen(true)}
+              title={
+                archivedAccounts.length > 0
+                  ? `Archived Accounts (${archivedAccounts.length})`
+                  : 'Archived Accounts'
+              }
+              aria-label="View archived accounts"
+              className="relative flex h-11 sm:h-13 shrink-0 items-center gap-2 rounded-[14px] border border-border bg-white px-3 sm:px-4.5 text-xs font-bold leading-[140%] text-foreground shadow-xs transition-colors hover:border-primary hover:bg-[#FAF9F5] active:scale-95 cursor-pointer"
+            >
+              <Archive className="h-4 w-4 shrink-0 text-foreground" />
+              <span className="hidden sm:inline">Archive</span>
+              {archivedAccounts.length > 0 && (
+                <span className="flex h-4.5 min-w-4.5 items-center justify-center rounded-full bg-[#D92D20] px-1 text-[10px] font-bold text-white shadow-xs">
+                  {archivedAccounts.length}
+                </span>
+              )}
+            </button>
+          }
         />
 
         <div className="mt-5">
@@ -288,12 +323,13 @@ export function OperatorAccountsPage() {
           />
         </div>
 
-        <AccountsPagination
+        <Pagination
           currentPage={pageParam}
           totalPages={totalPages}
           totalItems={totalItems}
           currentCount={accounts.length}
           pageSize={pageSize}
+          ariaLabel="Table pagination"
           onPageChange={(page) => updateParams({ page })}
         />
       </section>

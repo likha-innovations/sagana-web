@@ -1,17 +1,27 @@
 import { useState, useCallback } from 'react'
 import { useSearchParams } from 'react-router'
+import { CheckCircle2, Cpu, Layers } from 'lucide-react'
 import { toast } from 'sonner'
-import { CompostBatchesHeader } from './compost-batches-header'
-import { CompostBatchesStats } from './compost-batches-stats'
-import { CompostBatchesToolbar } from './compost-batches-toolbar'
+import { PageHeader } from '@/components/ui/page-header'
+import { StatsGrid } from '@/components/ui/stats-grid'
+import { FilterToolbar } from '@/components/ui/filter-toolbar'
+import { Pagination } from '@/components/ui/pagination'
+import { type DropdownOption } from '@/components/ui/custom-dropdown'
 import { CompostBatchesTable } from './compost-batches-table'
-import { CompostBatchesPagination } from './compost-batches-pagination'
 import { CompostBatchInfoModal } from './compost-batch-info-modal'
 import { useBatches, useBatchStats } from '@/hooks/use-batches'
 import { fetchBatches, type Batch } from '@/api/batch.api'
 import { type BatchPhase } from '@/types/batch'
 import { exportBatchesReport } from '@/lib/export-batches-report'
 import { exportBatchesToSheets } from '@/lib/export-sheets'
+
+const BATCH_STATUS_OPTIONS: DropdownOption[] = [
+  { value: 'all', label: 'All statuses' },
+  { value: 'Cooling', label: 'Cooling' },
+  { value: 'Thermophilic', label: 'Thermophilic' },
+  { value: 'Mesophilic', label: 'Mesophilic' },
+  { value: 'Completed', label: 'Completed' },
+]
 
 export function CompostBatchesPage() {
   const [searchParams, setSearchParams] = useSearchParams()
@@ -135,21 +145,48 @@ export function CompostBatchesPage() {
 
   return (
     <div className="flex flex-col gap-4 w-full">
-      <CompostBatchesHeader filteredBatches={batches} />
+      <PageHeader title="Compost Batches" />
 
-      <CompostBatchesStats stats={stats} isLoading={isLoading} />
+      <StatsGrid
+        ariaLabel="Compost Batches Statistics"
+        columnsClassName="grid-cols-2 xl:grid-cols-4"
+        isLoading={isLoading}
+        cards={[
+          {
+            label: 'All Time Total Produced',
+            value: (
+              <span>
+                {String(stats.allTimeTotalProduced).replace(' kg', '')}
+                <span className="ml-1 text-sm font-semibold">kg</span>
+              </span>
+            ),
+            icon: Layers,
+          },
+          { label: 'Total Compost Batches', value: stats.totalCompostBatches, icon: Layers },
+          { label: 'Finished batches', value: stats.finishedBatches, icon: CheckCircle2 },
+          { label: 'Ongoing Batches', value: stats.ongoingBatches, icon: Cpu },
+        ]}
+      />
 
       <section
         aria-label="Compost batches directory"
         className="flex flex-col gap-3.5 rounded-[20px] bg-white px-4 sm:px-5 pt-4.5 pb-2.5 shadow-card w-full overflow-hidden"
       >
-        <CompostBatchesToolbar
+        <FilterToolbar
           search={searchParam}
           onSearchChange={(val) => updateParams({ search: val, page: 1 })}
+          searchId="batch-search"
+          searchLabel="Search a batch ID, status, or feedstock weight"
+          searchPlaceholder="Search a batch ID, status, or feedstock weight.."
           status={statusParam}
           onStatusChange={(val) => updateParams({ status: val, page: 1 })}
+          statusOptions={BATCH_STATUS_OPTIONS}
+          statusId="batch-status-select"
+          statusAriaLabel="Filter by batch status"
           dateRange={dateRangeParam}
           onDateRangeChange={(val) => updateParams({ dateRange: val, page: 1 })}
+          dateId="batch-date-select"
+          dateAriaLabel="Filter by date"
           onExportPdf={handleExportPdf}
           onExportSheets={handleExportSheets}
           isExporting={isExporting}
@@ -166,12 +203,13 @@ export function CompostBatchesPage() {
           />
         </div>
 
-        <CompostBatchesPagination
+        <Pagination
           currentPage={pageParam}
           totalPages={totalPages}
           totalItems={totalItems}
           currentCount={batches.length}
           pageSize={pageSize}
+          ariaLabel="Compost batches pagination"
           onPageChange={(page) => updateParams({ page })}
         />
       </section>
