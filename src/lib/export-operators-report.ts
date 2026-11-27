@@ -1,4 +1,9 @@
-import type { OperatorAccount } from '@/api/operator.api'
+import {
+  getOperatorBarangayName,
+  getOperatorName,
+  type OperatorAccount,
+} from '@/types/operator'
+import { formatDate } from './utils'
 import {
   exportTablePdf,
   formatPdfDateRange,
@@ -34,7 +39,9 @@ export function exportOperatorsReport({
   const barangayLabel =
     barangay && barangay !== 'all'
       ? barangay
-      : accounts[0]?.barangay || 'Assigned Barangay'
+      : accounts[0]
+        ? getOperatorBarangayName(accounts[0])
+        : 'Assigned Barangay'
   const searchLabel = search.trim() ? `"${search.trim()}"` : 'All Operators'
 
   exportTablePdf({
@@ -48,11 +55,11 @@ export function exportOperatorsReport({
     summary: `Summary: ${accounts.length} total account${accounts.length === 1 ? '' : 's'} (${activeCount} active, ${suspendedCount} suspended) • Scope: ${searchLabel}`,
     columns: OPERATOR_COLUMNS,
     rows: accounts.map((op) => [
-      op.name,
+      getOperatorName(op),
       op.email,
       op.status === 'active' ? 'Active' : 'Suspended',
-      op.dateJoined,
-      op.barangay,
+      formatDate(op.createdAt),
+      getOperatorBarangayName(op),
     ]),
     emptyMessage: 'No operator accounts found matching criteria',
   })

@@ -8,7 +8,12 @@ import {
   Loader2,
   CheckCheck,
 } from 'lucide-react'
-import type { OperatorAccount } from '@/api/operator.api'
+import {
+  getOperatorBarangayName,
+  getOperatorName,
+  type OperatorAccount,
+} from '@/types/operator'
+import { formatDate, getInitials } from '@/lib/utils'
 
 interface ArchiveSidePanelProps {
   isOpen: boolean
@@ -20,14 +25,7 @@ interface ArchiveSidePanelProps {
 }
 
 function formatArchivedDate(dateStr?: string): string {
-  if (!dateStr) return 'Archived Nov 09, 2026'
-  const date = new Date(dateStr)
-  if (isNaN(date.getTime())) return `Archived ${dateStr}`
-  return `Archived ${date.toLocaleDateString('en-US', {
-    month: 'short',
-    day: '2-digit',
-    year: 'numeric',
-  })}`
+  return `Archived ${formatDate(dateStr, 'Nov 09, 2026')}`
 }
 
 export function ArchiveSidePanel({
@@ -60,9 +58,9 @@ export function ArchiveSidePanel({
     const q = search.trim().toLowerCase()
     if (!q) return safeAccounts
     return safeAccounts.filter((op) => {
-      const name = op?.name?.toLowerCase() || ''
+      const name = getOperatorName(op).toLowerCase()
       const email = op?.email?.toLowerCase() || ''
-      const barangay = op?.barangay?.toLowerCase() || ''
+      const barangay = getOperatorBarangayName(op).toLowerCase()
       return name.includes(q) || email.includes(q) || barangay.includes(q)
     })
   }, [safeAccounts, search])
@@ -257,14 +255,8 @@ export function ArchiveSidePanel({
                 ) : (
                   filteredAccounts.map((account) => {
                     const isSelected = selectedIds.has(account.id)
-                    const initials =
-                      (account.name || 'OP')
-                        .split(' ')
-                        .filter(Boolean)
-                        .map((n) => n[0])
-                        .slice(0, 2)
-                        .join('')
-                        .toUpperCase() || 'OP'
+                    const name = getOperatorName(account)
+                    const initials = getInitials(name, 'OP')
 
                     return (
                       <div
@@ -278,13 +270,13 @@ export function ArchiveSidePanel({
 
                           <div className="min-w-0 space-y-1">
                             <h3 className="truncate text-xs font-bold text-foreground leading-snug">
-                              {account.name}
+                              {name}
                             </h3>
                             <p className="truncate text-xs text-text-email leading-snug">
                               {account.email}
                             </p>
                             <p className="text-xs text-text-email leading-snug">
-                              {formatArchivedDate(account.dateJoined)}
+                              {formatArchivedDate(account.createdAt)}
                             </p>
                           </div>
                         </div>
@@ -293,7 +285,7 @@ export function ArchiveSidePanel({
                           <button
                             type="button"
                             onClick={() => handleToggleSelect(account.id)}
-                            aria-label={isSelected ? `Deselect ${account.name}` : `Select ${account.name}`}
+                            aria-label={isSelected ? `Deselect ${name}` : `Select ${name}`}
                             className="cursor-pointer"
                           >
                             {isSelected ? (
@@ -312,8 +304,8 @@ export function ArchiveSidePanel({
                               <button
                                 type="button"
                                 onClick={() => promptRestore([account])}
-                                title={`Restore ${account.name}`}
-                                aria-label={`Restore ${account.name}`}
+                                title={`Restore ${name}`}
+                                aria-label={`Restore ${name}`}
                                 className="flex h-8.5 w-8.5 items-center justify-center rounded-[12px] bg-brand-100 text-primary hover:bg-[#dbe4af] transition-colors cursor-pointer"
                               >
                                 <RotateCcw className="h-4 w-4" />
@@ -321,8 +313,8 @@ export function ArchiveSidePanel({
                               <button
                                 type="button"
                                 onClick={() => promptDelete([account])}
-                                title={`Delete ${account.name}`}
-                                aria-label={`Delete ${account.name}`}
+                                title={`Delete ${name}`}
+                                aria-label={`Delete ${name}`}
                                 className="flex h-8.5 w-8.5 items-center justify-center rounded-[12px] bg-[#FBDDDD] text-destructive hover:bg-[#fad4d1] transition-colors cursor-pointer"
                               >
                                 <Trash2 className="h-4 w-4" />
@@ -362,7 +354,7 @@ export function ArchiveSidePanel({
             <p className="mt-3 text-center text-xs leading-relaxed text-foreground">
               {confirmModal.accounts.length === 1 ? (
                 <>
-                  Are you sure you want to restore <span className="font-bold">{confirmModal.accounts[0].name}</span>’s account? Their account will be reactivated and returned to the main operator list.
+                  Are you sure you want to restore <span className="font-bold">{getOperatorName(confirmModal.accounts[0])}</span>’s account? Their account will be reactivated and returned to the main operator list.
                 </>
               ) : (
                 <>
@@ -421,7 +413,7 @@ export function ArchiveSidePanel({
             <p className="mt-3 text-center text-xs leading-relaxed text-foreground">
               {confirmModal.accounts.length === 1 ? (
                 <>
-                  <span className="font-bold">{confirmModal.accounts[0].name}</span>’s account will be permanently deleted, and <span className="text-destructive font-semibold">this action won’t be undone</span>.
+                  <span className="font-bold">{getOperatorName(confirmModal.accounts[0])}</span>’s account will be permanently deleted, and <span className="text-destructive font-semibold">this action won’t be undone</span>.
                 </>
               ) : (
                 <>

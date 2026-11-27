@@ -1,9 +1,12 @@
 import { api } from './client'
+import { createLogger } from '@/lib/logger'
+import type { BarangayCodeResponse } from '@/types/barangay'
 
-export interface BarangayCodeResponse {
-  code: string | null
-}
+const logger = createLogger('BarangayApi')
 
 export const barangayApi = {
-  getCode: () => api.get<BarangayCodeResponse>('/barangays/code'),
+  getCode: async (): Promise<BarangayCodeResponse> => {
+    logger.debug('Fetching barangay code')
+    return api.get<BarangayCodeResponse>('/barangays/code')
+  },
 }

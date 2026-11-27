@@ -2,7 +2,7 @@ import { useState, useCallback } from 'react'
 import { useSearchParams } from 'react-router'
 import { Archive } from 'lucide-react'
 import { toast } from 'sonner'
-import { useQueryClient } from '@tanstack/react-query'
+import { createLogger } from '@/lib/logger'
 import { PageHeader } from '@/components/ui/page-header'
 import { FilterToolbar } from '@/components/ui/filter-toolbar'
 import { Pagination } from '@/components/ui/pagination'
@@ -16,17 +16,20 @@ import {
   useOperators,
   useOperatorStats,
   useArchivedOperators,
-  operatorKeys,
+  useUpdateOperator,
+  useUpdateOperatorStatus,
+  useDeleteOperator,
 } from '@/hooks/use-operators'
+import { fetchOperatorAccounts } from '@/api/operator.api'
 import {
-  fetchOperatorAccounts,
-  updateOperatorStatus,
-  updateOperator,
-  deleteOperator,
+  getOperatorName,
   type OperatorAccount,
-} from '@/api/operator.api'
+  type UpdateOperatorInput,
+} from '@/types/operator'
 import { exportOperatorsReport } from '@/lib/export-operators-report'
 import { exportOperatorsToSheets } from '@/lib/export-sheets'
+
+const logger = createLogger('OperatorsPage')
 
 const OPERATOR_STATUS_OPTIONS: DropdownOption[] = [
   { value: 'all', label: 'All statuses' },
@@ -35,8 +38,10 @@ const OPERATOR_STATUS_OPTIONS: DropdownOption[] = [
 ]
 
 export function OperatorAccountsPage() {
-  const queryClient = useQueryClient()
   const [searchParams, setSearchParams] = useSearchParams()
+  const updateOperatorMutation = useUpdateOperator()
+  const updateStatusMutation = useUpdateOperatorStatus()
+  const deleteOperatorMutation = useDeleteOperator()
 
 
   const searchParam = searchParams.get('search') || ''
@@ -113,14 +118,15 @@ export function OperatorAccountsPage() {
     newStatus: 'active' | 'suspended'
   ) => {
     try {
-      await updateOperatorStatus(operator.id, newStatus)
+      await updateStatusMutation.mutateAsync({ id: operator.id, status: newStatus })
+      const name = getOperatorName(operator)
       if (newStatus === 'suspended') {
-        toast.success(`Operator ${operator.name} suspended and moved to archive`)
+        toast.success(`Operator ${name} suspended and moved to archive`)
       } else {
-        toast.success(`Operator ${operator.name} has been activated`)
+        toast.success(`Operator ${name} has been activated`)
       }
-      void queryClient.invalidateQueries({ queryKey: operatorKeys.all })
-    } catch {
+    } catch (err) {
+      logger.error('Failed to update operator status:', err)
       toast.error('Failed to update operator status on server')
     }
   }
@@ -129,15 +135,17 @@ export function OperatorAccountsPage() {
   const handleRestoreFromArchive = async (accountsToRestore: OperatorAccount[]) => {
     try {
       await Promise.all(
-        accountsToRestore.map((a) => updateOperatorStatus(a.id, 'active'))
+        accountsToRestore.map((a) =>
+          updateStatusMutation.mutateAsync({ id: a.id, status: 'active' })
+        )
       )
       toast.success(
         accountsToRestore.length === 1
-          ? `Operator ${accountsToRestore[0].name} restored successfully`
+          ? `Operator ${getOperatorName(accountsToRestore[0])} restored successfully`
           : `Restored ${accountsToRestore.length} operator accounts`
       )
-      void queryClient.invalidateQueries({ queryKey: operatorKeys.all })
-    } catch {
+    } catch (err) {
+      logger.error('Failed to restore operator accounts:', err)
       toast.error('Failed to restore operator accounts')
     }
   }
@@ -145,14 +153,16 @@ export function OperatorAccountsPage() {
 
   const handleDeleteFromArchive = async (accountsToDelete: OperatorAccount[]) => {
     try {
-      await Promise.all(accountsToDelete.map((a) => deleteOperator(a.id)))
+      await Promise.all(
+        accountsToDelete.map((a) => deleteOperatorMutation.mutateAsync(a.id))
+      )
       toast.success(
         accountsToDelete.length === 1
-          ? `Operator ${accountsToDelete[0].name} permanently deleted`
+          ? `Operator ${getOperatorName(accountsToDelete[0])} permanently deleted`
           : `Permanently deleted ${accountsToDelete.length} operator accounts`
       )
-      void queryClient.invalidateQueries({ queryKey: operatorKeys.all })
-    } catch {
+    } catch (err) {
+      logger.error('Failed to delete operator accounts:', err)
       toast.error('Failed to delete operator accounts')
     }
   }
@@ -162,24 +172,22 @@ export function OperatorAccountsPage() {
 
   const handleSaveUserInfo = async (
     operator: OperatorAccount,
-    data: { firstName: string; lastName: string; birthday: string }
+    data: UpdateOperatorInput
   ) => {
     try {
-      await updateOperator(operator.id, data)
-      toast.success(`Operator ${data.firstName} ${data.lastName} updated`)
+      await updateOperatorMutation.mutateAsync({ id: operator.id, data })
+      toast.success(`Operator ${data.fullName} updated`)
       setUserInfoOperator((prev) =>
         prev
           ? {
               ...prev,
-              name: `${data.firstName} ${data.lastName}`.trim(),
-              firstName: data.firstName,
-              lastName: data.lastName,
-              birthday: data.birthday,
+              fullName: data.fullName,
+              birthday: data.birthday ?? null,
             }
           : null
       )
-      void queryClient.invalidateQueries({ queryKey: operatorKeys.all })
-    } catch {
+    } catch (err) {
+      logger.error('Failed to update operator:', err)
       toast.error('Failed to update operator')
     }
   }
@@ -187,41 +195,41 @@ export function OperatorAccountsPage() {
 
   const handleArchiveFromUserInfo = async (operator: OperatorAccount) => {
     try {
-      await updateOperatorStatus(operator.id, 'suspended')
-      toast.success(`Operator ${operator.name} archived`)
-      void queryClient.invalidateQueries({ queryKey: operatorKeys.all })
-    } catch {
+      await updateStatusMutation.mutateAsync({ id: operator.id, status: 'suspended' })
+      toast.success(`Operator ${getOperatorName(operator)} archived`)
+    } catch (err) {
+      logger.error('Failed to archive operator:', err)
       toast.error('Failed to archive operator')
     }
+  }
+
+  const fetchAllOperatorsForExport = async (): Promise<OperatorAccount[]> => {
+    // ponytail: fetchOperatorAccounts loads /operators once and slices client-side, so 1 call collects all matching rows
+    const res = await fetchOperatorAccounts({
+      search: searchParam,
+      status: statusParam as 'all' | 'active' | 'suspended',
+      dateRange: dateRangeParam,
+      page: 1,
+      pageSize: Number.MAX_SAFE_INTEGER,
+    })
+    return res.data
   }
 
   const handleExportPdf = async () => {
     try {
       setIsExporting(true)
-      const res = await fetchOperatorAccounts({
-        search: searchParam,
-        status: statusParam as 'all' | 'active' | 'suspended',
-        dateRange: dateRangeParam,
-        page: 1,
-        pageSize: 1000,
-      })
+      const allAccounts = await fetchAllOperatorsForExport()
       exportOperatorsReport({
-        accounts: res.data.length > 0 ? res.data : accounts,
+        accounts: allAccounts,
         barangay: stats.barangayName,
         status: statusParam,
         dateRange: dateRangeParam,
         search: searchParam,
       })
       toast.success('Operator accounts report opened in new tab')
-    } catch {
-      exportOperatorsReport({
-        accounts,
-        barangay: stats.barangayName,
-        status: statusParam,
-        dateRange: dateRangeParam,
-        search: searchParam,
-      })
-      toast.success('Operator accounts report opened in new tab')
+    } catch (err) {
+      logger.error('Failed to export operator accounts report:', err)
+      toast.error('Failed to export operator accounts report. Please try again.')
     } finally {
       setIsExporting(false)
     }
@@ -230,18 +238,12 @@ export function OperatorAccountsPage() {
   const handleExportSheets = async () => {
     try {
       setIsExporting(true)
-      const res = await fetchOperatorAccounts({
-        search: searchParam,
-        status: statusParam as 'all' | 'active' | 'suspended',
-        dateRange: dateRangeParam,
-        page: 1,
-        pageSize: 1000,
-      })
-      exportOperatorsToSheets(res.data.length > 0 ? res.data : accounts)
+      const allAccounts = await fetchAllOperatorsForExport()
+      exportOperatorsToSheets(allAccounts)
       toast.success('Operator accounts exported as Sheets (CSV)')
-    } catch {
-      exportOperatorsToSheets(accounts)
-      toast.success('Operator accounts exported as Sheets (CSV)')
+    } catch (err) {
+      logger.error('Failed to export operator accounts to sheets:', err)
+      toast.error('Failed to export operator accounts. Please try again.')
     } finally {
       setIsExporting(false)
     }

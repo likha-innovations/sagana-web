@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { AlertTriangle, CheckCircle2, Loader2 } from 'lucide-react'
-import type { OperatorAccount } from '@/api/operator.api'
+import { getOperatorName, type OperatorAccount } from '@/types/operator'
 
 interface SuspendOperatorModalProps {
   operator: OperatorAccount | null
@@ -65,13 +65,13 @@ export function SuspendOperatorModal({
           {isSuspended ? (
             <>
               Are you sure you want to activate{' '}
-              <span className="font-medium text-[#333333]">{operator.name}</span>?
+              <span className="font-medium text-[#333333]">{getOperatorName(operator)}</span>?
               They will regain access to their account.
             </>
           ) : (
             <>
               Are you sure you want to suspend{' '}
-              <span className="font-medium text-[#333333]">{operator.name}</span>?
+              <span className="font-medium text-[#333333]">{getOperatorName(operator)}</span>?
               They will no longer have access to the system.
             </>
           )}

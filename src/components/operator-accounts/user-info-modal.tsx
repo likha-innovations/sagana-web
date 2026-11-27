@@ -1,27 +1,19 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useRef } from 'react'
 import { X, Archive, Check, Loader2 } from 'lucide-react'
-import { formatBirthday, type OperatorAccount } from '@/api/operator.api'
+import type {
+  OperatorAccount,
+  UpdateOperatorInput,
+} from '@/types/operator'
+import { getOperatorBarangayName, splitFullName } from '@/types/operator'
+import { useDialogFocus } from '@/hooks/use-dialog-focus'
+import { formatBirthday, formatDate } from '@/lib/utils'
 
 interface UserInfoModalProps {
   isOpen: boolean
   operator: OperatorAccount | null
   onClose: () => void
-  onSave: (
-    operator: OperatorAccount,
-    data: { firstName: string; lastName: string; birthday: string }
-  ) => Promise<void>
+  onSave: (operator: OperatorAccount, data: UpdateOperatorInput) => Promise<void>
   onArchive: (operator: OperatorAccount) => Promise<void>
-}
-
-function formatDateDisplay(dateStr?: string): string {
-  if (!dateStr) return ''
-  const d = new Date(dateStr)
-  if (isNaN(d.getTime())) return dateStr
-  return d.toLocaleDateString('en-US', {
-    month: 'short',
-    day: '2-digit',
-    year: 'numeric',
-  })
 }
 
 function UserInfoModalContent({
@@ -32,18 +24,36 @@ function UserInfoModalContent({
 }: {
   operator: OperatorAccount
   onClose: () => void
-  onSave: (
-    operator: OperatorAccount,
-    data: { firstName: string; lastName: string; birthday: string }
-  ) => Promise<void>
+  onSave: (operator: OperatorAccount, data: UpdateOperatorInput) => Promise<void>
   onArchive: (operator: OperatorAccount) => Promise<void>
 }) {
-  const [firstName, setFirstName] = useState(operator.firstName || '')
-  const [lastName, setLastName] = useState(operator.lastName || '')
+  const initialName = useMemo(() => splitFullName(operator.fullName), [operator.fullName])
+  const [firstName, setFirstName] = useState(initialName.firstName)
+  const [lastName, setLastName] = useState(initialName.lastName)
   const [birthday, setBirthday] = useState(() => formatBirthday(operator.birthday))
   const [isSaving, setIsSaving] = useState(false)
   const [isArchiving, setIsArchiving] = useState(false)
   const [showArchiveConfirm, setShowArchiveConfirm] = useState(false)
+  const mainDialogRef = useRef<HTMLDivElement>(null)
+  const archiveDialogRef = useRef<HTMLDivElement>(null)
+  const archiveButtonRef = useRef<HTMLButtonElement>(null)
+
+  useDialogFocus({
+    isOpen: !showArchiveConfirm,
+    dialogRef: mainDialogRef,
+    onClose: () => {
+      if (!isSaving && !showArchiveConfirm) onClose()
+    },
+  })
+
+  useDialogFocus({
+    isOpen: showArchiveConfirm,
+    dialogRef: archiveDialogRef,
+    onClose: () => {
+      if (!isArchiving) setShowArchiveConfirm(false)
+    },
+    restoreFocusRef: archiveButtonRef,
+  })
 
   const initialBirthday = useMemo(
     () => formatBirthday(operator.birthday),
@@ -52,15 +62,15 @@ function UserInfoModalContent({
 
   const hasChanges = useMemo(() => {
     return (
-      firstName.trim() !== (operator.firstName || '').trim() ||
-      lastName.trim() !== (operator.lastName || '').trim() ||
+      firstName.trim() !== initialName.firstName.trim() ||
+      lastName.trim() !== initialName.lastName.trim() ||
       birthday.trim() !== initialBirthday.trim()
     )
-  }, [operator, firstName, lastName, birthday, initialBirthday])
+  }, [initialName.firstName, initialName.lastName, firstName, lastName, birthday, initialBirthday])
 
   const handleDiscard = () => {
-    setFirstName(operator.firstName || '')
-    setLastName(operator.lastName || '')
+    setFirstName(initialName.firstName)
+    setLastName(initialName.lastName)
     setBirthday(initialBirthday)
   }
 
@@ -84,8 +94,7 @@ function UserInfoModalContent({
     try {
       setIsSaving(true)
       await onSave(operator, {
-        firstName: firstName.trim(),
-        lastName: lastName.trim(),
+        fullName: `${firstName.trim()} ${lastName.trim()}`.trim(),
         birthday: birthday.trim(),
       })
     } finally {
@@ -110,14 +119,20 @@ function UserInfoModalContent({
         className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs"
         role="dialog"
         aria-modal="true"
+        aria-hidden={showArchiveConfirm || undefined}
       >
         <div
           className="fixed inset-0"
-          onClick={isSaving ? undefined : onClose}
+          onClick={isSaving || showArchiveConfirm ? undefined : onClose}
           aria-hidden="true"
         />
 
-        <div className="relative w-full max-w-196.5 max-h-[90vh] overflow-y-auto rounded-[28px] bg-[#F8F7F2] shadow-2xl animate-in zoom-in-95 duration-200">
+        <div
+          ref={mainDialogRef}
+          inert={showArchiveConfirm}
+          tabIndex={-1}
+          className="relative w-full max-w-196.5 max-h-[90vh] overflow-y-auto rounded-[28px] bg-[#F8F7F2] shadow-2xl animate-in zoom-in-95 duration-200 outline-none"
+        >
           <div className="flex items-center justify-between px-5 sm:px-8 py-4 sm:py-5 border-b border-border">
             <h2 className="text-base font-bold text-foreground">
               User Information
@@ -136,10 +151,11 @@ function UserInfoModalContent({
           <div className="px-5 sm:px-8 py-5 sm:py-6 space-y-4">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-5">
               <div>
-                <label className="block text-xs font-bold text-foreground mb-1.5 sm:mb-2">
+                <label htmlFor="user-info-first-name" className="block text-xs font-bold text-foreground mb-1.5 sm:mb-2">
                   First Name
                 </label>
                 <input
+                  id="user-info-first-name"
                   type="text"
                   value={firstName}
                   onChange={(e) => setFirstName(e.target.value)}
@@ -147,10 +163,11 @@ function UserInfoModalContent({
                 />
               </div>
               <div>
-                <label className="block text-xs font-bold text-foreground mb-1.5 sm:mb-2">
+                <label htmlFor="user-info-last-name" className="block text-xs font-bold text-foreground mb-1.5 sm:mb-2">
                   Last Name
                 </label>
                 <input
+                  id="user-info-last-name"
                   type="text"
                   value={lastName}
                   onChange={(e) => setLastName(e.target.value)}
@@ -160,10 +177,11 @@ function UserInfoModalContent({
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-foreground mb-1.5 sm:mb-2">
+              <label htmlFor="user-info-birthday" className="block text-xs font-bold text-foreground mb-1.5 sm:mb-2">
                 Date of Birth
               </label>
               <input
+                id="user-info-birthday"
                 type="text"
                 value={birthday}
                 onChange={handleBirthdayChange}
@@ -178,7 +196,7 @@ function UserInfoModalContent({
                   Date Joined
                 </label>
                 <div className="flex h-11 sm:h-13 w-full items-center rounded-[14px] sm:rounded-[18px] border border-border bg-[#F5F5F3] px-4 sm:px-5 text-xs text-text-email">
-                  {formatDateDisplay(operator.dateJoined)}
+                  {formatDate(operator.createdAt, '')}
                 </div>
               </div>
               <div>
@@ -186,7 +204,7 @@ function UserInfoModalContent({
                   Barangay
                 </label>
                 <div className="flex h-11 sm:h-13 w-full items-center rounded-[14px] sm:rounded-[18px] border border-border bg-[#F5F5F3] px-4 sm:px-5 text-xs text-text-email">
-                  {operator.barangay}
+                  {getOperatorBarangayName(operator)}
                 </div>
               </div>
             </div>
@@ -205,13 +223,14 @@ function UserInfoModalContent({
                 Account Creation Method
               </label>
               <div className="flex h-11 sm:h-13 w-full items-center rounded-[14px] sm:rounded-[18px] border border-border bg-[#F5F5F3] px-4 sm:px-5 text-xs text-text-email">
-                {operator.accountCreationMethod || 'Google'}
+                {operator.authProvider || 'Google'}
               </div>
             </div>
           </div>
 
           <div className="flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-between px-5 sm:px-8 py-4 sm:py-5 border-t border-border">
             <button
+              ref={archiveButtonRef}
               type="button"
               onClick={() => setShowArchiveConfirm(true)}
               disabled={isSaving}
@@ -254,17 +273,22 @@ function UserInfoModalContent({
       {showArchiveConfirm && (
         <div
           className="fixed inset-0 z-60 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs"
-          role="dialog"
+          role="alertdialog"
           aria-modal="true"
+          aria-labelledby="archive-confirm-title"
         >
-          <div className="w-full max-w-105 rounded-[28px] bg-[#F8F7F2] p-6 sm:p-8 shadow-2xl animate-in zoom-in-95 duration-200">
+          <div
+            ref={archiveDialogRef}
+            tabIndex={-1}
+            className="w-full max-w-105 rounded-[28px] bg-[#F8F7F2] p-6 sm:p-8 shadow-2xl animate-in zoom-in-95 duration-200 outline-none"
+          >
             <div className="flex justify-center mb-5">
               <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#FBDDDD] text-destructive">
                 <Archive className="h-6 w-6 stroke-[2.2]" />
               </div>
             </div>
 
-            <h3 className="text-center text-base font-bold text-foreground">
+            <h3 id="archive-confirm-title" className="text-center text-base font-bold text-foreground">
               Archive this account?
             </h3>
 
@@ -315,7 +339,7 @@ export function UserInfoModal({
 
   return (
     <UserInfoModalContent
-      key={`${operator.id}-${operator.name}-${operator.birthday ?? ''}`}
+      key={`${operator.id}-${operator.fullName ?? ''}-${operator.birthday ?? ''}`}
       operator={operator}
       onClose={onClose}
       onSave={onSave}

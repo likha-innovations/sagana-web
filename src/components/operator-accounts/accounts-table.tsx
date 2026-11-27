@@ -1,7 +1,8 @@
 import { StatusBadge } from './status-badge'
 import { Skeleton } from '@/ui/skeleton'
 import { Ban, ShieldCheck } from 'lucide-react'
-import type { OperatorAccount } from '@/api/operator.api'
+import { getOperatorName, type OperatorAccount } from '@/types/operator'
+import { formatDate, getInitials } from '@/lib/utils'
 
 interface AccountsTableProps {
   accounts: OperatorAccount[]
@@ -12,29 +13,6 @@ interface AccountsTableProps {
   onSuspend?: (account: OperatorAccount) => void
   onManage?: (account: OperatorAccount) => void
   onRowClick?: (account: OperatorAccount) => void
-}
-
-function formatDate(dateStr: string) {
-  try {
-    const d = new Date(dateStr)
-    if (isNaN(d.getTime())) return dateStr
-    return new Intl.DateTimeFormat('en-US', {
-      month: 'short',
-      day: '2-digit',
-      year: 'numeric',
-    }).format(d)
-  } catch {
-    return dateStr
-  }
-}
-
-function getInitials(name: string) {
-  return name
-    .split(' ')
-    .map((part) => part[0])
-    .slice(0, 2)
-    .join('')
-    .toUpperCase()
 }
 
 export function AccountsTable({
@@ -120,7 +98,8 @@ export function AccountsTable({
     <>
       <div className="flex flex-col gap-3 sm:hidden">
         {accounts.map((account) => {
-          const initials = getInitials(account.name)
+          const name = getOperatorName(account)
+          const initials = getInitials(name, '')
           return (
             <div
               key={account.id}
@@ -132,7 +111,16 @@ export function AccountsTable({
                   {initials}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-[13px] font-semibold text-foreground truncate">{account.name}</p>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      onRowClick?.(account)
+                    }}
+                    className="block w-full text-left text-[13px] font-semibold text-foreground truncate hover:underline cursor-pointer"
+                  >
+                    {name}
+                  </button>
                   <p className="text-xs text-text-email truncate">{account.email}</p>
                 </div>
                 <StatusBadge status={account.status} />
@@ -176,18 +164,28 @@ export function AccountsTable({
           </thead>
           <tbody className="divide-y divide-border">
             {accounts.map((account) => {
-              const initials = getInitials(account.name)
+              const name = getOperatorName(account)
+              const initials = getInitials(name, '')
               return (
                 <tr key={account.id} onClick={() => onRowClick?.(account)} className="h-13.5 transition-colors hover:bg-[#F2F1EB]/70 cursor-pointer">
                   <td className="py-2 pr-3">
                     <div className="flex items-center gap-3">
                       <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-brand-100 text-[13px] font-normal leading-none text-brand-700">{initials}</div>
-                      <span className="truncate text-[13px] font-normal leading-[140%] text-foreground">{account.name}</span>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          onRowClick?.(account)
+                        }}
+                        className="truncate text-left text-[13px] font-normal leading-[140%] text-foreground hover:underline cursor-pointer"
+                      >
+                        {name}
+                      </button>
                     </div>
                   </td>
                   <td className="py-2 pr-3"><span className="truncate text-[13px] font-normal leading-[140%] text-text-email">{account.email}</span></td>
                   <td className="py-2 pr-3"><StatusBadge status={account.status} /></td>
-                  <td className="py-2 pr-3 text-[13px] font-normal text-foreground">{formatDate(account.dateJoined)}</td>
+                  <td className="py-2 pr-3 text-[13px] font-normal text-foreground">{formatDate(account.createdAt)}</td>
                   <td className="py-2 text-right pr-10" onClick={(e) => e.stopPropagation()}>
                     {account.status === 'suspended' ? (
                       <button type="button" onClick={() => (onSuspend || onManage)?.(account)} className="inline-block text-[13px] font-semibold leading-none text-primary hover:opacity-80 transition-opacity cursor-pointer">Activate</button>
