@@ -1,10 +1,11 @@
 import {
+  operatorApi,
   fetchOperatorAccounts,
   fetchOperatorStats,
   fetchArchivedOperators,
-  updateOperatorStatus,
-  deleteOperator,
 } from '@/api/operator.api'
+import { getOperatorName } from '@/types/operator'
+import { formatBirthday } from '@/lib/utils'
 import { api } from '@/api/client'
 import { barangayApi } from '@/api/barangay.api'
 
@@ -58,7 +59,8 @@ describe('operator.api', () => {
     const res = await fetchOperatorAccounts({ search: 'Maria' })
     expect(api.get).toHaveBeenCalledWith('/operators')
     expect(res.total).toBe(1)
-    expect(res.data[0].name).toBe('Maria Santos')
+    expect(getOperatorName(res.data[0])).toBe('Maria Santos')
+    expect(res.data[0].fullName).toBe('Maria Santos')
   })
 
   it('filters suspended operators for archive view', async () => {
@@ -67,7 +69,7 @@ describe('operator.api', () => {
     const archived = await fetchArchivedOperators()
     expect(api.get).toHaveBeenCalledWith('/operators')
     expect(archived).toHaveLength(1)
-    expect(archived[0].name).toBe('Pedro Penduko')
+    expect(getOperatorName(archived[0])).toBe('Pedro Penduko')
   })
 
   it('uses the real barangay code from barangayApi.getCode() rather than slicing ID', async () => {
@@ -85,14 +87,38 @@ describe('operator.api', () => {
   it('patches status to /operators/:id/status', async () => {
     jest.mocked(api.patch).mockResolvedValueOnce({})
 
-    await updateOperatorStatus('op-1', 'suspended')
+    await operatorApi.updateStatus('op-1', 'suspended')
     expect(api.patch).toHaveBeenCalledWith('/operators/op-1/status', { status: 'suspended' })
   })
 
   it('deletes operator via DELETE /operators/:id', async () => {
     jest.mocked(api.delete).mockResolvedValueOnce({})
 
-    await deleteOperator('op-1')
+    await operatorApi.delete('op-1')
     expect(api.delete).toHaveBeenCalledWith('/operators/op-1')
+  })
+
+  it('preserves UTC calendar day in formatBirthday and operatorApi.update across timezones', async () => {
+    expect(formatBirthday('1995-05-05T00:00:00.000Z')).toBe('05/05/1995')
+    expect(formatBirthday('1995-05-05')).toBe('05/05/1995')
+
+    jest.mocked(api.patch).mockResolvedValueOnce({})
+    await operatorApi.update('op-1', {
+      fullName: 'Maria Santos',
+      birthday: '05/05/1995',
+    })
+
+    expect(api.patch).toHaveBeenCalledWith('/operators/op-1', {
+      fullName: 'Maria Santos',
+      birthday: '1995-05-05',
+    })
+  })
+
+  it('paginates filtered operators and includes suspended when requested', async () => {
+    jest.mocked(api.get).mockResolvedValueOnce(mockOperators)
+
+    const res = await fetchOperatorAccounts({ status: 'suspended', page: 1, pageSize: 10 })
+    expect(res.total).toBe(1)
+    expect(getOperatorName(res.data[0])).toBe('Pedro Penduko')
   })
 })

@@ -1,4 +1,9 @@
-﻿# Clean Code & React 19 Best Practices Guard (clean-code-guardian)
+---
+trigger: always_on
+description: React 19 clean code guard banning React.FC and React.* namespaces in sagana-web
+---
+
+# Clean Code & React 19 Best Practices Guard (clean-code-guardian)
 
 ## Core Mission
 Ensure all React code in sagana-web follows modern React 19 standards, eliminates namespace clutter (React.*), bans React.FC, and enforces readable named imports.

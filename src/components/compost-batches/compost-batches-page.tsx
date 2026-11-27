@@ -1,15 +1,30 @@
 import { useState, useCallback } from 'react'
 import { useSearchParams } from 'react-router'
+import { CheckCircle2, Cpu, Layers } from 'lucide-react'
 import { toast } from 'sonner'
-import { CompostBatchesHeader } from './compost-batches-header'
-import { CompostBatchesStats } from './compost-batches-stats'
-import { CompostBatchesToolbar } from './compost-batches-toolbar'
+import { createLogger } from '@/lib/logger'
+import { PageHeader } from '@/components/ui/page-header'
+import { StatsGrid } from '@/components/ui/stats-grid'
+import { FilterToolbar } from '@/components/ui/filter-toolbar'
+import { Pagination } from '@/components/ui/pagination'
+import { type DropdownOption } from '@/components/ui/custom-dropdown'
 import { CompostBatchesTable } from './compost-batches-table'
-import { CompostBatchesPagination } from './compost-batches-pagination'
+import { CompostBatchInfoModal } from './compost-batch-info-modal'
 import { useBatches, useBatchStats } from '@/hooks/use-batches'
-import { fetchBatches, type Batch } from '@/api/batch.api'
-import { type BatchPhase } from '@/types/batch'
+import { fetchBatches } from '@/api/batch.api'
+import { type Batch, type BatchPhase } from '@/types/batch'
 import { exportBatchesReport } from '@/lib/export-batches-report'
+import { exportBatchesToSheets } from '@/lib/export-sheets'
+
+const logger = createLogger('CompostBatchesPage')
+
+const BATCH_STATUS_OPTIONS: DropdownOption[] = [
+  { value: 'all', label: 'All statuses' },
+  { value: 'Cooling', label: 'Cooling' },
+  { value: 'Thermophilic', label: 'Thermophilic' },
+  { value: 'Mesophilic', label: 'Mesophilic' },
+  { value: 'Completed', label: 'Completed' },
+]
 
 export function CompostBatchesPage() {
   const [searchParams, setSearchParams] = useSearchParams()
@@ -18,7 +33,7 @@ export function CompostBatchesPage() {
   const statusParam = searchParams.get('status') || 'all'
   const dateRangeParam = searchParams.get('dateRange') || 'all'
   const pageParam = parseInt(searchParams.get('page') || '1', 10)
-  const pageSize = 10
+  const pageSize = 8
 
   const updateParams = useCallback(
     (newParams: Record<string, string | number | null>) => {
@@ -64,8 +79,10 @@ export function CompostBatchesPage() {
   }
 
   const [isExporting, setIsExporting] = useState(false)
+  const [selectedBatch, setSelectedBatch] = useState<Batch | null>(null)
+  const [isBatchModalOpen, setIsBatchModalOpen] = useState(false)
 
-  const handleExport = async () => {
+  const handleExportPdf = async () => {
     try {
       setIsExporting(true)
       const res = await fetchBatches({
@@ -82,7 +99,8 @@ export function CompostBatchesPage() {
         dateRange: dateRangeParam,
       })
       toast.success('Compost batches report opened in new tab')
-    } catch {
+    } catch (err) {
+      logger.warn('Failed to fetch batches for PDF export, using loaded view:', err)
       exportBatchesReport({
         batches,
         search: searchParam,
@@ -90,6 +108,27 @@ export function CompostBatchesPage() {
         dateRange: dateRangeParam,
       })
       toast.success('Compost batches report opened in new tab')
+    } finally {
+      setIsExporting(false)
+    }
+  }
+
+  const handleExportSheets = async () => {
+    try {
+      setIsExporting(true)
+      const res = await fetchBatches({
+        search: searchParam,
+        status: statusParam as 'all' | BatchPhase,
+        dateRange: dateRangeParam,
+        page: 1,
+        pageSize: 1000,
+      })
+      exportBatchesToSheets(res.data.length > 0 ? res.data : batches)
+      toast.success('Compost batches exported as Sheets (CSV)')
+    } catch (err) {
+      logger.warn('Failed to fetch batches for CSV export, using loaded view:', err)
+      exportBatchesToSheets(batches)
+      toast.success('Compost batches exported as Sheets (CSV)')
     } finally {
       setIsExporting(false)
     }
@@ -105,36 +144,60 @@ export function CompostBatchesPage() {
   }
 
   const handleViewBatch = (batch: Batch) => {
-    toast.info(`Viewing batch: ${batch.batchCode} (${batch.status})`)
+    setSelectedBatch(batch)
+    setIsBatchModalOpen(true)
   }
 
   return (
     <div className="flex flex-col gap-4 w-full">
-      {/* Overview heading row */}
-      <CompostBatchesHeader filteredBatches={batches} />
+      <PageHeader title="Compost Batches" />
 
-      {/* KPI 4 summary cards row */}
-      <CompostBatchesStats stats={stats} isLoading={isLoading} />
+      <StatsGrid
+        ariaLabel="Compost Batches Statistics"
+        columnsClassName="grid-cols-2 xl:grid-cols-4"
+        isLoading={isLoading}
+        cards={[
+          {
+            label: 'All Time Total Produced',
+            value: (
+              <span>
+                {String(stats.allTimeTotalProduced).replace(' kg', '')}
+                <span className="ml-1 text-sm font-semibold">kg</span>
+              </span>
+            ),
+            icon: Layers,
+          },
+          { label: 'Total Compost Batches', value: stats.totalCompostBatches, icon: Layers },
+          { label: 'Finished batches', value: stats.finishedBatches, icon: CheckCircle2 },
+          { label: 'Ongoing Batches', value: stats.ongoingBatches, icon: Cpu },
+        ]}
+      />
 
-      {/* Compost batches directory container card */}
       <section
         aria-label="Compost batches directory"
-        className="flex flex-col gap-3.5 rounded-[20px] bg-white px-5 pt-4.5 pb-2.5 shadow-card w-full"
+        className="flex flex-col gap-3.5 rounded-[20px] bg-white px-4 sm:px-5 pt-4.5 pb-2.5 shadow-card w-full overflow-hidden"
       >
-        {/* Toolbar */}
-        <CompostBatchesToolbar
+        <FilterToolbar
           search={searchParam}
           onSearchChange={(val) => updateParams({ search: val, page: 1 })}
+          searchId="batch-search"
+          searchLabel="Search a batch ID, status, or feedstock weight"
+          searchPlaceholder="Search a batch ID, status, or feedstock weight.."
           status={statusParam}
           onStatusChange={(val) => updateParams({ status: val, page: 1 })}
+          statusOptions={BATCH_STATUS_OPTIONS}
+          statusId="batch-status-select"
+          statusAriaLabel="Filter by batch status"
           dateRange={dateRangeParam}
           onDateRangeChange={(val) => updateParams({ dateRange: val, page: 1 })}
-          onExport={handleExport}
+          dateId="batch-date-select"
+          dateAriaLabel="Filter by date"
+          onExportPdf={handleExportPdf}
+          onExportSheets={handleExportSheets}
           isExporting={isExporting}
         />
 
-        {/* Table with 20px space from toolbar */}
-        <div className="mt-[20px]">
+        <div className="mt-5">
           <CompostBatchesTable
             batches={batches}
             isLoading={isLoading}
@@ -145,15 +208,25 @@ export function CompostBatchesPage() {
           />
         </div>
 
-        {/* Pagination Footer */}
-        <CompostBatchesPagination
+        <Pagination
           currentPage={pageParam}
           totalPages={totalPages}
           totalItems={totalItems}
           currentCount={batches.length}
+          pageSize={pageSize}
+          ariaLabel="Compost batches pagination"
           onPageChange={(page) => updateParams({ page })}
         />
       </section>
+
+      <CompostBatchInfoModal
+        isOpen={isBatchModalOpen}
+        batch={selectedBatch}
+        onClose={() => {
+          setIsBatchModalOpen(false)
+          setSelectedBatch(null)
+        }}
+      />
     </div>
   )
 }

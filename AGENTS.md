@@ -25,25 +25,27 @@
 - **Strip All Conversational Fluff**: Eliminate polite filler, preamble, self-evident narration, and hedging.
 - **Dense, Exact Prose**: Keep technical terms exact, file links clickable, and explanations compact.
 - **Direct Named Imports**: Follow `clean-code-guardian`. Ban `React.FC` and inline `React.*` namespaces (`React.useState`, `React.useEffect`, `React.ReactNode`). Always import named identifiers directly.
+- **Tailwind Canonical Classes**: Always use Tailwind theme tokens and canonical utility names instead of arbitrary bracket values when a token exists. Apply every `suggestCanonicalClasses` suggestion before committing (e.g. `text-foreground` not `text-[#414141]`, `border-border` not `border-[#DCDBD5]`, `h-13` not `h-[52px]`). Reference `src/index.css` `@theme` block for the project's color tokens.
 
 ## 4. 🎨 Web UI Agent & Skills
 
-The web UI craftsmanship skills live in `.agents/skills/`:
+The project agent is `web-ui`, defined in `.codex/agents/web-ui.toml`. Shared rules live in `.agents/rules/`, and UI craftsmanship skills live in `.agents/skills/`:
 
 - For UI implementation, component refactoring, and TanStack Query integration, read `.agents/skills/ui-craftsman/SKILL.md`.
 - When translating a Figma reference or layout specification, also read `.agents/skills/figma-design-to-code/SKILL.md`.
-- Use these skills when working directly on any web screen, component, hook, or layout.
+- Use these same skills directly or via `web-ui` when working on any web screen, component, hook, API, or type contract.
 
 ## 5. 🗺️ Source Map
 
-- `src/api/`: Typed REST wrappers (`api.get`, `api.patch`, `api.delete`). No raw `axios`; uses typed `fetch` wrapper.
-- `src/hooks/`: TanStack Query v5 hooks with structured query key factories (`*Keys.all`, `*Keys.list()`, `*Keys.stats`).
-- `src/components/`: Feature modules and domain presentation (`compost-batches/`, `machines/`, `operator-accounts/`, `dashboard/`, `settings/`).
-- `src/components/ui/`: Base primitives (Radix UI + CVA).
+Follow the same flat-layered structure as `sagana-mobile`:
+
+- `src/types/`: Single source of truth schemas, contracts, and small display helpers (`api.ts`, `auth.ts`, `barangay.ts`, `batch.ts`, `dashboard.ts`, `machine.ts`, `operator.ts`). All models align 1:1 to `sagana-backend` camelCase Prisma shapes; zero `Backend*` / `*Dto` translation types.
+- `src/api/`: Thin typed REST wrappers (`apiFetch<T>` / `api.*` in `client.ts`; `*Api` in `barangay.api.ts`, `batch.api.ts`, `dashboard.api.ts`, `machine.api.ts`, `operator.api.ts`, `user.api.ts`). No raw `axios` and no inline domain DTO definitions.
+- `src/hooks/`: TanStack Query v5 reads AND mutations (`useQuery`, `useMutation`, structured `*Keys` factories, `queryClient.invalidateQueries` in mutation `onSuccess`) plus UI accessibility hooks (`use-dialog-focus.ts`).
+- `src/components/`: Feature modules (`auth/`, `compost-batches/`, `machines/`, `operator-accounts/`, `dashboard/`, `settings/`) and `ui/` base primitives.
 - `src/context/`: Auth state (`auth-context.tsx`) and WebSocket real-time cache invalidation (`socket-context.tsx`).
-- `src/types/`: Centralized Prisma-aligned Zod schemas and TypeScript models (`batch.ts`, `auth.ts`, `api.ts`, `dashboard.ts`).
+- `src/lib/`: Shared utilities (`utils.ts` for `formatDate`, `formatBirthday`, `toCanonicalBirthday`, `getInitials`, `paginateList`), CSV/PDF exporters (`csv-utils.ts`, `pdf-utils.ts`, `export-*.ts`), `date-range.ts`, `session-persistence.ts`, `password-reset.ts`, and `logger.ts`.
 - `src/tests/`: Dedicated Jest unit test suites (`*.test.ts`). Never place tests directly in component folders or name them `*.spec.ts`.
-- `src/lib/`: Utilities (`utils.ts` for `cn()`, `logger.ts` for scoped client logging, `date-range.ts`, `pdf-utils.ts`).
 
 ## 6. 🧪 Verification Standard
 

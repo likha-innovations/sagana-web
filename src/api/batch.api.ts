@@ -1,36 +1,20 @@
 import { api } from './client'
 import { isDateInRange } from '@/lib/date-range'
+import { createLogger } from '@/lib/logger'
+import { paginateList } from '@/lib/utils'
 import {
   type CompostBatch,
+  type BatchTemperatureReading,
+  type BatchStatsData,
+  type BatchQueryParams,
+  type BatchListResponse,
   compostBatchSchema,
+  batchTemperatureReadingSchema,
   getBatchPhase,
   formatBatchDate,
 } from '@/types/batch'
 
-export type { CompostBatch, Batch } from '@/types/batch'
-
-export interface BatchStatsData {
-  allTimeTotalProduced: string
-  totalCompostBatches: number
-  finishedBatches: number
-  ongoingBatches: number
-}
-
-export interface BatchQueryParams {
-  search?: string
-  status?: 'all' | string
-  dateRange?: string
-  page?: number
-  pageSize?: number
-}
-
-export interface BatchListResponse {
-  data: CompostBatch[]
-  total: number
-  page: number
-  pageSize: number
-  totalPages: number
-}
+const logger = createLogger('BatchApi')
 
 export const batchApi = {
   list: async (): Promise<CompostBatch[]> => {
@@ -76,18 +60,7 @@ export async function fetchBatches(
     return matchesSearch && matchesStatus && matchesDate
   })
 
-  const total = filtered.length
-  const totalPages = Math.max(1, Math.ceil(total / pageSize))
-  const start = (page - 1) * pageSize
-  const data = filtered.slice(start, start + pageSize)
-
-  return {
-    data,
-    total,
-    page,
-    pageSize,
-    totalPages,
-  }
+  return paginateList(filtered, page, pageSize)
 }
 
 export async function fetchBatchStats(): Promise<BatchStatsData> {
@@ -107,5 +80,22 @@ export async function fetchBatchStats(): Promise<BatchStatsData> {
     totalCompostBatches: allBatches.length,
     finishedBatches,
     ongoingBatches,
+  }
+}
+
+export async function fetchBatchTemperature(
+  batchId: string
+): Promise<BatchTemperatureReading[]> {
+  try {
+    const raw = await api.get<unknown>(
+      `/batches/${encodeURIComponent(batchId)}/temperature`
+    )
+    if (Array.isArray(raw)) {
+      return batchTemperatureReadingSchema.array().catch([]).parse(raw)
+    }
+    return []
+  } catch (err) {
+    logger.warn('Failed to fetch batch temperature:', { batchId, err })
+    return []
   }
 }

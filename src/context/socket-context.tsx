@@ -68,7 +68,7 @@ export function SocketProvider({ children }: { children: ReactNode }) {
   const [lastStatus, setLastStatus] = useState<MachineStatusPayload | null>(null)
   const [lastUpdateTimestamp, setLastUpdateTimestamp] = useState<number>(0)
 
-  // Stable ref for getToken to avoid re-running the effect when Clerk re-renders
+
   const getTokenRef = useRef(getToken)
   getTokenRef.current = getToken
 
@@ -77,17 +77,17 @@ export function SocketProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     let isMounted = true
 
-    // Connect socket (token is sent asynchronously after connection)
+
     const socket = connectSocket()
     socketRef.current = socket
 
-    // Sync initial connected state
+
     if (socket.connected) {
       setIsConnected(true)
       logger.info('Socket already connected on mount')
     }
 
-    // Fetch and attach token seamlessly without disrupting active connection
+
     void getTokenRef.current().then((token) => {
       if (!isMounted) return
       if (token) {
@@ -101,7 +101,7 @@ export function SocketProvider({ children }: { children: ReactNode }) {
     let lastThrottle = 0
     let throttleTimeout: NodeJS.Timeout | null = null
 
-    // Throttled timestamp updater to prevent rapid UI thrashing/flickering
+
     const notifyUpdate = () => {
       const now = Date.now()
       if (now - lastThrottle > 2000) {
@@ -150,7 +150,7 @@ export function SocketProvider({ children }: { children: ReactNode }) {
     const handleTelemetry = (data: TelemetryPayload) => {
       if (isMounted) {
         setLastTelemetry(data)
-        // Telemetry updates sensor data; throttle notification to avoid spamming table refetches
+
         notifyUpdate()
       }
     }
@@ -187,7 +187,7 @@ export function SocketProvider({ children }: { children: ReactNode }) {
       socket.off('status', handleStatus)
       socket.off('dashboard:update', handleDashboardUpdate)
     }
-  }, []) // Stable effect — no dependency on getToken
+  }, [])
 
   return (
     <SocketContext.Provider

@@ -1,7 +1,7 @@
 import { computeDashboardData } from '@/api/dashboard.api'
 import type { CompostBatch } from '@/types/batch'
-import type { MachineStatsData } from '@/api/machine.api'
-import type { OperatorStatsData } from '@/api/operator.api'
+import type { MachineStatsData } from '@/types/machine'
+import type { OperatorStatsData } from '@/types/operator'
 
 jest.mock('@/api/client', () => ({
   api: {

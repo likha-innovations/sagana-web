@@ -1,14 +1,13 @@
-import { cn } from '@/lib/utils'
+import { type HTMLAttributes } from 'react'
 
-export function Skeleton({
-  className,
-  ...props
-}: React.HTMLAttributes<HTMLDivElement>) {
+export function Skeleton({ className, ...props }: HTMLAttributes<HTMLDivElement>) {
+  const base = 'animate-pulse bg-[#E2E1DC]/60'
+  const rounded = className?.includes('rounded') ? '' : 'rounded-md'
   return (
     <div
       role="status"
       aria-label="Loading..."
-      className={cn('animate-pulse rounded-md bg-[#E2E1DC]/60', className)}
+      className={`${base} ${rounded} ${className ?? ''}`.trim()}
       {...props}
     />
   )

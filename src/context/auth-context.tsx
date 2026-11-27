@@ -1,28 +1,45 @@
-import { createContext, useContext, useState, useEffect, useCallback, useMemo, type ReactNode } from 'react'
-import { useAuth, useUser, useClerk } from '@clerk/react'
-import { useSignIn, useSignUp } from '@clerk/react/legacy'
+import { createContext, useContext, useState, useEffect, useCallback, useMemo, useRef, type ReactNode } from 'react'
+import { useAuth, useUser, useClerk, useSession } from '@clerk/react'
+import { useSignIn } from '@clerk/react/legacy'
 import {
   type User,
   type UserRole,
-  type SignUpInput,
   signInSchema,
-  signUpSchema,
+  verifyCodeSchema,
+  resetPasswordRequestSchema,
+  resetPasswordConfirmSchema,
 } from '@/types/auth'
 import { userApi } from '@/api/user.api'
 import { setAuthTokenGetter } from '@/lib/auth-token'
 import { createLogger } from '@/lib/logger'
+import {
+  clearSessionPersistence,
+  requireKeepSignedInPersistence,
+  shouldExpireSessionOnBoot,
+} from '@/lib/session-persistence'
+import { extractClerkErrorMessage } from '@/lib/password-reset'
 
 const logger = createLogger('AuthContext')
+
+export type ResetPrepStatus = 'idle' | 'pending' | 'sent' | 'failed'
 
 interface AuthContextType {
   isSignedIn: boolean
   isLoaded: boolean
+  resetPrepStatus: ResetPrepStatus
+  resetPrepError: string | null
+  clearResetPrep: () => void
   user: User | null
   role: UserRole
   getToken: () => Promise<string | null>
   signIn: (email: string, password: string, keepSignedIn?: boolean) => Promise<void>
-  signUp: (params: SignUpInput) => Promise<void>
-  signOut: () => Promise<void>
+  requestPasswordReset: (email: string) => Promise<void>
+  preparePasswordReset: (email: string) => Promise<void>
+  verifyPasswordResetCode: (code: string) => Promise<void>
+  resetPassword: (newPassword: string, code?: string) => Promise<void>
+  verifyCurrentPassword: (currentPassword: string) => Promise<void>
+  updatePassword: (currentPassword: string, newPassword: string) => Promise<void>
+  signOut: (options?: { skipRedirect?: boolean }) => Promise<void>
 }
 
 const AuthContext = createContext<AuthContextType | null>(null)
@@ -30,42 +47,54 @@ const AuthContext = createContext<AuthContextType | null>(null)
 export function AuthProvider({ children }: { children: ReactNode }) {
   const clerk = useClerk()
   const { isSignedIn, isLoaded: authLoaded, signOut: clerkSignOut, getToken } = useAuth()
+  const { session } = useSession()
   const { user: clerkUser, isLoaded: userLoaded } = useUser()
   const { signIn: clerkSignIn, setActive: setSignInActive, isLoaded: signInLoaded } = useSignIn()
-  const { signUp: clerkSignUp } = useSignUp()
 
   const [isActionLoading, setIsActionLoading] = useState(false)
+  const [resetPrepStatus, setResetPrepStatus] = useState<ResetPrepStatus>('idle')
+  const [resetPrepError, setResetPrepError] = useState<string | null>(null)
+  const [bootSignOutError, setBootSignOutError] = useState(false)
   const [dbUser, setDbUser] = useState<User | null>(null)
   const [isProfileFetched, setIsProfileFetched] = useState(false)
+  const isExpiringBootSessionRef = useRef(false)
 
-  // Enforce session termination on browser close when "Keep me signed in" is unchecked (AC8 & AC9)
-  useEffect(() => {
-    if (!authLoaded || !isSignedIn) {
-      return
-    }
+  const needsSessionExpiry = Boolean(authLoaded && isSignedIn && shouldExpireSessionOnBoot())
 
-    const keepSignedInStored = localStorage.getItem('sagana_keep_signed_in') === 'true'
-    const sessionActiveStored = sessionStorage.getItem('sagana_session_active') === 'true'
-
-    if (!keepSignedInStored && !sessionActiveStored) {
-      logger.info('Session ended because Keep me signed in was not active and browser closed')
-      void clerkSignOut().then(() => {
-        setDbUser(null)
-        localStorage.removeItem('sagana_keep_signed_in')
-        sessionStorage.removeItem('sagana_session_active')
-      })
-    }
-  }, [authLoaded, isSignedIn, clerkSignOut])
-
-  // Automatically wire Clerk's active JWT getter into native apiFetch
   useEffect(() => {
     setAuthTokenGetter(getToken)
   }, [getToken])
 
-  // Fetch backend profile from PostgreSQL (/me) to get database role
+  const expireBootSession = useCallback(() => {
+    if (isExpiringBootSessionRef.current) return
+    isExpiringBootSessionRef.current = true
+    setBootSignOutError(false)
+    logger.info('Expiring non-persistent session after browser/tab restart')
+    void clerkSignOut(() => {})
+      .then(() => {
+        clearSessionPersistence()
+        setDbUser(null)
+        setIsProfileFetched(false)
+      })
+      .catch((err) => {
+        logger.warn('Failed to expire non-persistent session on boot', err)
+        setBootSignOutError(true)
+      })
+      .finally(() => {
+        isExpiringBootSessionRef.current = false
+      })
+  }, [clerkSignOut])
+
+  useEffect(() => {
+    if (!needsSessionExpiry || bootSignOutError) {
+      return
+    }
+    expireBootSession()
+  }, [needsSessionExpiry, bootSignOutError, expireBootSession])
+
   useEffect(() => {
     let isMounted = true
-    if (!isSignedIn) {
+    if (!isSignedIn || needsSessionExpiry) {
       return
     }
 
@@ -88,12 +117,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => {
       isMounted = false
     }
-  }, [isSignedIn, getToken])
+  }, [isSignedIn, needsSessionExpiry, getToken])
 
   const isLoaded =
-    authLoaded && userLoaded && signInLoaded && !isActionLoading && (!isSignedIn || isProfileFetched)
+    authLoaded &&
+    userLoaded &&
+    signInLoaded &&
+    !isActionLoading &&
+    !needsSessionExpiry &&
+    (!isSignedIn || isProfileFetched)
 
-  // Normalized user object mirroring Prisma model and mobile AuthContext
   const user: User | null = useMemo(() => {
     if (!clerkUser) return null
     const unsafeMeta = (clerkUser.unsafeMetadata || {}) as Record<string, unknown>
@@ -120,7 +153,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signIn = useCallback(
     async (email: string, password: string, keepSignedIn = false) => {
-      logger.info(`Initiating custom sign in for ${email}`)
+      logger.info(`Initiating sign in for ${email}`)
       setIsActionLoading(true)
 
       try {
@@ -135,7 +168,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           password: validated.password,
         })
 
-        // If Clerk requests first factor password verification
         if (attempt.status === 'needs_first_factor') {
           attempt = await clerkSignIn.attemptFirstFactor({
             strategy: 'password',
@@ -146,19 +178,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (attempt.status === 'complete') {
           logger.info(`Sign in complete for ${email}`)
 
-          // Set storage flags BEFORE activating the session so the
-          // session-enforcement useEffect sees them when isSignedIn flips.
-          if (keepSignedIn) {
-            localStorage.setItem('sagana_keep_signed_in', 'true')
-            sessionStorage.removeItem('sagana_session_active')
-          } else {
-            localStorage.removeItem('sagana_keep_signed_in')
-            sessionStorage.setItem('sagana_session_active', 'true')
-          }
-
+          requireKeepSignedInPersistence(keepSignedIn)
           await setSignInActive({ session: attempt.createdSessionId })
 
-          // Verify admin role requirement (AC7)
           let verifiedRole: string | null = null
 
           try {
@@ -182,10 +204,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
           if (verifiedRole && verifiedRole !== 'admin') {
             logger.warn(`User ${email} has role '${verifiedRole}', not 'admin'. Rejecting sign-in.`)
-            await clerkSignOut()
+            await clerkSignOut(() => {})
+            clearSessionPersistence()
             setDbUser(null)
-            localStorage.removeItem('sagana_keep_signed_in')
-            sessionStorage.removeItem('sagana_session_active')
+            setIsProfileFetched(false)
             throw new Error('Incorrect credentials, try again')
           }
 
@@ -206,71 +228,228 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [clerkSignIn, setSignInActive, clerk, getToken, clerkSignOut]
   )
 
-  const signUp = useCallback(
-    async (params: SignUpInput) => {
-      logger.info(`Initiating custom sign up for ${params.email}`)
-      setIsActionLoading(true)
-
-      try {
-        if (!clerkSignUp) {
-          throw new Error('Sign-up service is currently initializing. Please try again.')
-        }
-
-        const validated = signUpSchema.parse(params)
-
-        const nameParts = validated.fullName.trim().split(' ')
-        const firstName = nameParts[0] || validated.fullName
-        const lastName = nameParts.slice(1).join(' ') || ''
-
-        await clerkSignUp.create({
-          emailAddress: validated.email,
-          password: validated.password,
-          firstName,
-          lastName,
-          unsafeMetadata: {
-            role: validated.role,
-            contactNumber: validated.contactNumber?.trim() || null,
-            location: validated.location?.trim() || null,
-          },
-        })
-
-        logger.info(`Sign up successful for ${params.email}`)
-      } catch (err: unknown) {
-        logger.error(`Sign up error for ${params.email}`, err)
-        throw err
-      } finally {
-        setIsActionLoading(false)
+  const requestPasswordReset = useCallback(
+    async (email: string) => {
+      const signInResource = clerk.client?.signIn ?? clerkSignIn
+      if (!signInResource) {
+        throw new Error('Password reset service is currently initializing. Please try again.')
       }
+
+      const validated = resetPasswordRequestSchema.parse({ email })
+      await signInResource.create({
+        strategy: 'reset_password_email_code',
+        identifier: validated.email,
+      })
+      logger.info(`Password reset email sent to ${validated.email}`)
     },
-    [clerkSignUp]
+    [clerk, clerkSignIn]
   )
 
-  const signOut = useCallback(async () => {
-    logger.info('Signing out active user session')
-    try {
-      localStorage.removeItem('sagana_keep_signed_in')
-      sessionStorage.removeItem('sagana_session_active')
-      await clerkSignOut()
-      setDbUser(null)
-    } catch (err) {
-      logger.error('Error during sign out', err)
-      throw err
-    }
-  }, [clerkSignOut])
+  const verifyPasswordResetCode = useCallback(
+    async (code: string) => {
+      const signInResource = clerk.client?.signIn ?? clerkSignIn
+      if (!signInResource) {
+        throw new Error('Password reset service is currently initializing. Please try again.')
+      }
+
+      const validated = verifyCodeSchema.parse({ code })
+      const result = await signInResource.attemptFirstFactor({
+        strategy: 'reset_password_email_code',
+        code: validated.code,
+      })
+
+      if (result.status !== 'needs_new_password' && result.status !== 'complete') {
+        logger.warn('Password reset code verification returned unexpected status', result.status)
+        throw new Error(
+          result.status ? `Verification failed with status: ${result.status}` : 'Verification failed'
+        )
+      }
+
+      logger.info('Password reset code verified successfully')
+    },
+    [clerk, clerkSignIn]
+  )
+
+  const resetPassword = useCallback(
+    async (newPassword: string, code?: string) => {
+      const signInResource = clerk.client?.signIn ?? clerkSignIn
+      if (!signInResource) {
+        throw new Error('Password reset service is currently initializing. Please try again.')
+      }
+
+      const trimmedCode = code?.trim()
+      let result
+
+      if (signInResource.status === 'needs_new_password') {
+        result = await signInResource.resetPassword({ password: newPassword })
+      } else if (trimmedCode) {
+        const validated = resetPasswordConfirmSchema.parse({
+          code: trimmedCode,
+          password: newPassword,
+        })
+        result = await signInResource.attemptFirstFactor({
+          strategy: 'reset_password_email_code',
+          code: validated.code,
+          password: validated.password,
+        })
+      } else {
+        result = await signInResource.resetPassword({ password: newPassword })
+      }
+
+      if (result.status !== 'complete') {
+        logger.warn('Password reset incomplete', result.status)
+        throw new Error('Password reset incomplete. Please try again.')
+      }
+
+      // ponytail: keep session inactive so web renders 'You are all set!' and verifies admin role on /sign-in
+      logger.info('Password reset complete')
+    },
+    [clerk, clerkSignIn]
+  )
+
+  const verifyCurrentPassword = useCallback(
+    async (currentPassword: string) => {
+      if (!session) {
+        throw new Error('Active session not found. Please sign in again.')
+      }
+
+      await session.startVerification({ level: 'first_factor' })
+      const verification = await session.attemptFirstFactorVerification({
+        strategy: 'password',
+        password: currentPassword,
+      })
+
+      if (verification.status !== 'complete') {
+        throw new Error('Current password verification incomplete')
+      }
+    },
+    [session]
+  )
+
+  const updatePassword = useCallback(
+    async (currentPassword: string, newPassword: string) => {
+      if (!clerkUser) {
+        throw new Error('User session is not loaded')
+      }
+
+      await clerkUser.updatePassword({
+        currentPassword,
+        newPassword,
+        signOutOfOtherSessions: true,
+      })
+      logger.info('Password updated successfully for active user')
+    },
+    [clerkUser]
+  )
+
+  const signOut = useCallback(
+    async (options?: { skipRedirect?: boolean }) => {
+      logger.info('Signing out active user session')
+      try {
+        // ponytail: passing a callback suppresses Clerk's default redirect to '/' (-> '/sign-in')
+        if (options?.skipRedirect) {
+          await clerkSignOut(() => {})
+        } else {
+          await clerkSignOut()
+        }
+        clearSessionPersistence()
+        setDbUser(null)
+        setIsProfileFetched(false)
+      } catch (err) {
+        logger.error('Error during sign out', err)
+        throw err
+      }
+    },
+    [clerkSignOut]
+  )
+
+  const clearResetPrep = useCallback(() => {
+    setResetPrepStatus('idle')
+    setResetPrepError(null)
+  }, [])
+
+  const preparePasswordReset = useCallback(
+    async (email: string) => {
+      setResetPrepStatus('pending')
+      setResetPrepError(null)
+      try {
+        await clerkSignOut(() => {})
+        clearSessionPersistence()
+        setDbUser(null)
+        setIsProfileFetched(false)
+        await requestPasswordReset(email)
+        setResetPrepStatus('sent')
+      } catch (err: unknown) {
+        const message = extractClerkErrorMessage(
+          err,
+          'Unable to send verification code. Please try again.'
+        )
+        setResetPrepStatus('failed')
+        setResetPrepError(message)
+        throw err
+      }
+    },
+    [clerkSignOut, requestPasswordReset]
+  )
 
   const value = useMemo<AuthContextType>(
     () => ({
       isSignedIn: !!isSignedIn,
       isLoaded,
+      resetPrepStatus,
+      resetPrepError,
+      clearResetPrep,
       user,
       role,
       getToken,
       signIn,
-      signUp,
+      requestPasswordReset,
+      preparePasswordReset,
+      verifyPasswordResetCode,
+      resetPassword,
+      verifyCurrentPassword,
+      updatePassword,
       signOut,
     }),
-    [isSignedIn, isLoaded, user, role, getToken, signIn, signUp, signOut]
+    [
+      isSignedIn,
+      isLoaded,
+      resetPrepStatus,
+      resetPrepError,
+      clearResetPrep,
+      user,
+      role,
+      getToken,
+      signIn,
+      requestPasswordReset,
+      preparePasswordReset,
+      verifyPasswordResetCode,
+      resetPassword,
+      verifyCurrentPassword,
+      updatePassword,
+      signOut,
+    ]
   )
+
+  if (needsSessionExpiry && bootSignOutError) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-page p-6 text-center">
+        <div className="max-w-sm rounded-2xl border border-border bg-[#FDFCF7] p-6 shadow-card space-y-3">
+          <h2 className="text-base font-bold text-foreground">Session expired</h2>
+          <p className="text-xs text-text-email">
+            We couldn&apos;t sign out your previous session automatically. Retry to continue to sign in.
+          </p>
+          <button
+            type="button"
+            onClick={expireBootSession}
+            className="h-10 rounded-full bg-primary px-5 text-xs font-semibold text-white hover:bg-[#627920] cursor-pointer"
+          >
+            Retry sign out
+          </button>
+        </div>
+      </div>
+    )
+  }
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }

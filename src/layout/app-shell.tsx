@@ -1,10 +1,11 @@
-import { useState, type ReactNode } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { Link, Outlet, useLocation } from 'react-router'
-import { ChevronUp, Cpu, Layers, LayoutDashboard, LogOut, Menu, Settings, Users, X } from 'lucide-react'
+import { ChevronUp, Cpu, Layers, LayoutDashboard, Menu, Users, X } from 'lucide-react'
 import saganaLogo from '@/assets/sagana-logo.png'
 import { useAuthContext } from '@/context/auth-context'
-import { Button } from '@/ui/button'
-import { SettingsModal } from '@/components/settings/settings-modal'
+import { getInitials } from '@/lib/utils'
+
+import { AccountSettingsModal } from '@/components/settings/settings-modal'
 
 const navLinks = [
   { to: '/admin', label: 'Dashboard', icon: LayoutDashboard, end: true },
@@ -13,21 +14,9 @@ const navLinks = [
   { to: '/admin/compost-batches', label: 'Compost Batches', icon: Layers },
 ]
 
-function getUserInitials(fullName?: string | null) {
-  if (!fullName) return 'A'
-
-  return fullName
-    .split(' ')
-    .filter(Boolean)
-    .map((name) => name[0])
-    .slice(0, 2)
-    .join('')
-    .toUpperCase()
-}
-
 function getNavLinkClasses(isActive: boolean) {
   return [
-    'flex h-14 items-center gap-3 rounded-2xl px-3 text-xs leading-none text-[#414141] transition-all',
+    'flex h-14 items-center gap-3 rounded-2xl px-3 text-xs leading-none text-foreground transition-all',
     isActive
       ? 'bg-[#FDFCF7] font-bold shadow-[0_6px_20px_rgba(65,65,65,0.08)]'
       : 'font-medium hover:bg-[#FDFCF7]/60',
@@ -35,25 +24,33 @@ function getNavLinkClasses(isActive: boolean) {
 }
 
 export function AppShell({ children }: { children: ReactNode }) {
-  const { user, role, signOut } = useAuthContext()
+  const { user, role } = useAuthContext()
   const location = useLocation()
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false)
-  const [profileMenuOpen, setProfileMenuOpen] = useState(false)
   const [settingsModalOpen, setSettingsModalOpen] = useState(false)
 
   const closeSidebar = () => {
     setMobileSidebarOpen(false)
-    setProfileMenuOpen(false)
   }
+
+  useEffect(() => {
+    if (!mobileSidebarOpen) return
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') closeSidebar()
+    }
+    document.addEventListener('keydown', handleKeyDown)
+    return () => document.removeEventListener('keydown', handleKeyDown)
+  }, [mobileSidebarOpen])
+
   const currentPath = location.pathname
-  const userInitials = getUserInitials(user?.fullName)
+  const userInitials = getInitials(user?.fullName)
   const displayName = user?.fullName || 'Administrator'
 
   const sidebarContent = (
     <div className="flex h-full flex-col justify-between px-7 py-8">
       <div>
         <Link to="/admin" onClick={closeSidebar} className="block">
-          <img src={saganaLogo} alt="Sagana" className="h-auto w-full" />
+          <img src={saganaLogo} alt="Sagana" className="h-8 w-auto" />
         </Link>
 
         <div className="mt-6 h-px w-full bg-border" />
@@ -83,114 +80,68 @@ export function AppShell({ children }: { children: ReactNode }) {
         </nav>
       </div>
 
-      <div className="relative">
-        {/* Backdrop for closing popover when clicking outside */}
-        {profileMenuOpen && (
-          <div
-            className="fixed inset-0 z-30"
-            onClick={() => setProfileMenuOpen(false)}
-            aria-hidden="true"
-          />
-        )}
-
-        {/* ChatGPT-style floating popup menu */}
-        {profileMenuOpen && (
-          <div
-            className="absolute bottom-[calc(100%+8px)] left-0 right-0 z-40 rounded-2xl bg-[#FDFCF7] p-1.5 shadow-[0_12px_32px_rgba(65,65,65,0.14)] border border-[#DCDBD5] animate-in fade-in zoom-in-95 duration-150"
-            role="menu"
-            aria-orientation="vertical"
-          >
-            <button
-              type="button"
-              role="menuitem"
-              onClick={() => {
-                setProfileMenuOpen(false)
-                closeSidebar()
-                setSettingsModalOpen(true)
-              }}
-              className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-xs font-medium text-[#414141] hover:bg-[#FAF9F4] transition-colors cursor-pointer text-left"
-            >
-              <Settings className="h-4 w-4 text-[#7C7D74]" />
-              <span>Settings</span>
-            </button>
-
-            <button
-              type="button"
-              role="menuitem"
-              onClick={() => {
-                setProfileMenuOpen(false)
-                closeSidebar()
-                void signOut()
-              }}
-              className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-xs font-medium text-[#C53030] hover:bg-[#FDF2F0] transition-colors cursor-pointer text-left"
-            >
-              <LogOut className="h-4 w-4 text-[#C53030]" />
-              <span>Log out</span>
-            </button>
-          </div>
-        )}
-
-        {/* Profile Pill */}
+      <div>
         <div
           role="button"
           tabIndex={0}
-          onClick={() => setProfileMenuOpen((prev) => !prev)}
+          onClick={() => setSettingsModalOpen(true)}
           onKeyDown={(e) => {
             if (e.key === 'Enter' || e.key === ' ') {
-              setProfileMenuOpen((prev) => !prev)
+              setSettingsModalOpen(true)
             }
           }}
-          className={`flex items-center gap-3 rounded-[20px] bg-[#FDFCF7] p-3 shadow-[0_8px_24px_rgba(65,65,65,0.08)] cursor-pointer border transition-all select-none hover:bg-[#FAF9F0] ${
-            profileMenuOpen ? 'border-[#DCDBD5] bg-[#FAF9F0]' : 'border-transparent'
-          }`}
-          title="Account menu"
-          aria-haspopup="true"
-          aria-expanded={profileMenuOpen}
+          className="flex items-center gap-3 rounded-[20px] bg-[#FDFCF7] p-3 shadow-[0_8px_24px_rgba(65,65,65,0.08)] cursor-pointer border border-transparent transition-all select-none hover:bg-[#FAF9F0] hover:border-border"
+          title="Account settings"
+          aria-label="Open account settings"
         >
           <div className="flex h-9.5 w-9.5 shrink-0 items-center justify-center rounded-full bg-linear-to-b from-[#C9E752] to-positive text-xs font-bold text-white">
             {userInitials}
           </div>
           <div className="min-w-0 flex-1">
-            <p className="truncate text-[14px] font-bold leading-[1.3] text-[#414141]">{displayName}</p>
-            <p className="text-[12px] capitalize leading-[1.4] text-[#566811]">{role}</p>
+            <p className="truncate text-[14px] font-bold leading-[1.3] text-foreground">{displayName}</p>
+            <p className="text-xs capitalize leading-[1.4] text-brand-700">{role}</p>
           </div>
-          <ChevronUp
-            className={`h-4 w-4 text-[#7C7D74] transition-transform duration-200 ${
-              profileMenuOpen ? 'rotate-180' : ''
-            }`}
-          />
+          <ChevronUp className="h-4 w-4 text-text-email" />
         </div>
       </div>
     </div>
   )
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
-      <aside className="fixed inset-y-0 left-0 z-30 hidden w-64 flex-col bg-background md:flex">
+    <div className="min-h-screen bg-background text-foreground overflow-x-hidden max-w-[100vw]">
+      <aside className="fixed inset-y-0 left-0 z-30 hidden w-64 flex-col bg-background lg:flex">
         {sidebarContent}
       </aside>
 
-      <header className="sticky top-0 z-20 flex h-14 items-center justify-between border-b border-border bg-background/90 px-4 backdrop-blur md:hidden">
+      <header className="sticky top-0 z-20 flex h-14 items-center justify-between border-b border-border bg-background/90 px-4 backdrop-blur lg:hidden">
         <div className="flex items-center gap-2.5">
-          <Button
-            variant="outline"
-            size="icon"
+          <button
+            type="button"
             onClick={() => setMobileSidebarOpen(true)}
-            className="h-11 w-11 min-h-11 min-w-11 rounded-lg border-border"
+            className="inline-flex items-center justify-center h-11 w-11 min-h-11 min-w-11 rounded-lg transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring cursor-pointer"
             aria-label="Open sidebar navigation"
           >
             <Menu className="h-5 w-5" />
-          </Button>
+          </button>
           <img src={saganaLogo} alt="Sagana" className="h-6 w-auto" />
         </div>
 
-        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-linear-to-b from-[#C9E752] to-positive text-xs font-bold text-white">
-          {userInitials}
+        <div
+          role="button"
+          tabIndex={0}
+          onClick={() => setSettingsModalOpen(true)}
+          className="flex h-11 w-11 items-center justify-center cursor-pointer"
+          title="Account settings"
+          aria-label="Open account settings"
+        >
+          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-linear-to-b from-[#C9E752] to-positive text-xs font-bold text-white">
+            {userInitials}
+          </div>
         </div>
       </header>
 
       {mobileSidebarOpen && (
-        <div className="fixed inset-0 z-40 flex md:hidden">
+        <div className="fixed inset-0 z-40 flex lg:hidden">
           <div
             className="fixed inset-0 bg-black/40 transition-opacity"
             onClick={closeSidebar}
@@ -199,31 +150,30 @@ export function AppShell({ children }: { children: ReactNode }) {
 
           <div className="relative z-50 h-full w-72 max-w-[80vw] bg-background shadow-2xl">
             <div className="absolute right-2 top-2">
-              <Button
-                variant="ghost"
-                size="icon"
+              <button
+                type="button"
                 onClick={closeSidebar}
-                className="h-11 w-11 min-h-11 min-w-11 rounded-lg text-muted-foreground hover:text-foreground"
+                className="inline-flex items-center justify-center h-11 w-11 min-h-11 min-w-11 rounded-lg transition-colors text-muted-foreground hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring cursor-pointer"
                 aria-label="Close sidebar navigation"
               >
                 <X className="h-5 w-5" />
-              </Button>
+              </button>
             </div>
             {sidebarContent}
           </div>
         </div>
       )}
 
-      <div className="flex min-h-screen flex-col md:pl-64">
-        <main className="flex-1 flex flex-col w-full px-4 pt-5 pb-6 sm:px-6 md:pl-3 md:pr-9 md:pt-5 md:pb-6">
-          <div key={currentPath} className="flex-1 flex flex-col animate-in fade-in duration-200">
+      <div className="flex min-h-screen flex-col lg:pl-64 overflow-x-hidden max-w-[100vw]">
+        <main className="flex-1 flex flex-col w-full min-w-0 px-4 pt-5 pb-6 sm:px-6 lg:pl-3 lg:pr-9 lg:pt-5 lg:pb-6" style={{ overflowX: 'clip' }}>
+          <div key={currentPath} className="flex-1 flex flex-col min-w-0 animate-in fade-in duration-200">
             {children}
             <Outlet />
           </div>
         </main>
       </div>
 
-      <SettingsModal
+      <AccountSettingsModal
         isOpen={settingsModalOpen}
         onClose={() => setSettingsModalOpen(false)}
       />

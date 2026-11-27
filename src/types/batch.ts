@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { formatDate, type PaginatedResult } from '@/lib/utils'
 
 export const batchFeedstockSchema = z.object({
   id: z.string(),
@@ -16,7 +17,15 @@ export const compostingPhaseSchema = z.object({
 })
 export type CompostingPhase = z.infer<typeof compostingPhaseSchema>
 
-// Direct Prisma-aligned CompostBatch schema matching sagana-mobile
+export const batchTemperatureReadingSchema = z.object({
+  day: z.number().optional(),
+  timestamp: z.string().optional(),
+  temperature: z.number().optional(),
+  temp: z.number().optional(),
+})
+export type BatchTemperatureReading = z.infer<typeof batchTemperatureReadingSchema>
+
+
 export const compostBatchSchema = z.object({
   id: z.string(),
   machineId: z.string(),
@@ -30,12 +39,30 @@ export const compostBatchSchema = z.object({
   machineName: z.string().optional(),
   feedstocks: z.array(batchFeedstockSchema).optional().default([]),
   compostingPhases: z.array(compostingPhaseSchema).optional().default([]),
+  temperatureLogs: z.array(batchTemperatureReadingSchema).optional().default([]),
 })
 export type CompostBatch = z.infer<typeof compostBatchSchema>
 
-// Batch alias pointing directly to the domain CompostBatch
+
 export type Batch = CompostBatch
 export type BatchPhase = 'Cooling' | 'Thermophilic' | 'Mesophilic' | 'Completed'
+
+export interface BatchStatsData {
+  allTimeTotalProduced: string
+  totalCompostBatches: number
+  finishedBatches: number
+  ongoingBatches: number
+}
+
+export interface BatchQueryParams {
+  search?: string
+  status?: 'all' | string
+  dateRange?: string
+  page?: number
+  pageSize?: number
+}
+
+export type BatchListResponse = PaginatedResult<CompostBatch>
 
 export function getBatchPhase(batch: CompostBatch): BatchPhase {
   if (batch.completionDate || batch.status?.toLowerCase() === 'completed') {
@@ -56,9 +83,5 @@ export function getDaysComposting(batch: CompostBatch): number {
 }
 
 export function formatBatchDate(dateStr: string): string {
-  const d = new Date(dateStr)
-  return isNaN(d.getTime())
-    ? 'Unknown date'
-    : d.toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' })
+  return formatDate(dateStr, 'Unknown date', 'Unknown date')
 }
-

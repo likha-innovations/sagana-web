@@ -1,4 +1,9 @@
-﻿# Code Discipline & Simplicity Rules (simplicity-guard)
+---
+trigger: always_on
+description: Clean code discipline, DRY, YAGNI, guard clauses, and single-line comment rules for sagana-web
+---
+
+# Code Discipline & Simplicity Rules (simplicity-guard)
 
 ## 1. YAGNI & Lean Implementation
 - No Speculative Coding: Build only what is needed for the current requirement. Never create anticipatory abstractions or generic utility modules before 3+ distinct call sites require them.

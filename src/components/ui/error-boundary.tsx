@@ -40,14 +40,14 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
           <div className="flex h-14 w-14 items-center justify-center rounded-full bg-[#FFEAEB] text-[#D92D20] border border-[#F8C1C4] mb-4">
             <AlertTriangle className="h-7 w-7" />
           </div>
-          <h3 className="text-lg font-bold text-[#414141]">Something went wrong</h3>
-          <p className="mt-1 text-sm text-[#7C7D74] max-w-md">
+          <h3 className="text-lg font-bold text-foreground">Something went wrong</h3>
+          <p className="mt-1 text-sm text-text-email max-w-md">
             {this.state.error?.message || 'An unexpected error occurred while rendering this section.'}
           </p>
           <button
             type="button"
             onClick={this.handleReset}
-            className="mt-4 flex items-center gap-2 rounded-xl bg-[#718619] px-4 py-2 text-xs font-semibold text-white hover:bg-[#627515] transition-colors cursor-pointer"
+            className="mt-4 flex items-center gap-2 rounded-xl bg-primary px-4 py-2 text-xs font-semibold text-white hover:bg-[#627515] transition-colors cursor-pointer"
           >
             <RotateCcw className="h-4 w-4" />
             <span>Try again</span>

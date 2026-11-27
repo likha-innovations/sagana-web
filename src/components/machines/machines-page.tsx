@@ -1,14 +1,28 @@
 import { useState, useCallback } from 'react'
 import { useSearchParams } from 'react-router'
+import { Cpu, Wifi, WifiOff } from 'lucide-react'
 import { toast } from 'sonner'
-import { MachinesHeader } from './machines-header'
-import { MachinesStats } from './machines-stats'
-import { MachinesToolbar } from './machines-toolbar'
+import { createLogger } from '@/lib/logger'
+import { PageHeader } from '@/components/ui/page-header'
+import { StatsGrid } from '@/components/ui/stats-grid'
+import { FilterToolbar } from '@/components/ui/filter-toolbar'
+import { Pagination } from '@/components/ui/pagination'
+import { type DropdownOption } from '@/components/ui/custom-dropdown'
 import { MachinesTable } from './machines-table'
-import { MachinesPagination } from './machines-pagination'
+import { MachineInfoModal } from './machine-info-modal'
 import { useMachines, useMachineStats } from '@/hooks/use-machines'
-import { fetchMachines, type Machine } from '@/api/machine.api'
+import { fetchMachines } from '@/api/machine.api'
+import type { Machine } from '@/types/machine'
 import { exportMachinesReport } from '@/lib/export-machines-report'
+import { exportMachinesToSheets } from '@/lib/export-sheets'
+
+const logger = createLogger('MachinesPage')
+
+const MACHINE_STATUS_OPTIONS: DropdownOption[] = [
+  { value: 'all', label: 'All statuses' },
+  { value: 'online', label: 'Online' },
+  { value: 'offline', label: 'Offline' },
+]
 
 export function MachinesPage() {
   const [searchParams, setSearchParams] = useSearchParams()
@@ -62,8 +76,10 @@ export function MachinesPage() {
   }
 
   const [isExporting, setIsExporting] = useState(false)
+  const [selectedMachine, setSelectedMachine] = useState<Machine | null>(null)
+  const [isModalOpen, setIsModalOpen] = useState(false)
 
-  const handleExport = async () => {
+  const handleExportPdf = async () => {
     try {
       setIsExporting(true)
       const res = await fetchMachines({
@@ -74,20 +90,35 @@ export function MachinesPage() {
         pageSize: 1000,
       })
       exportMachinesReport({
-        machines: res.data.length > 0 ? res.data : machines,
+        machines: res.data,
         search: searchParam,
         status: statusParam,
         dateRange: dateRangeParam,
       })
       toast.success('Machines report opened in new tab')
-    } catch {
-      exportMachinesReport({
-        machines,
+    } catch (err) {
+      logger.error('Failed to export machines report:', err)
+      toast.error('Failed to export machines report. Please try again.')
+    } finally {
+      setIsExporting(false)
+    }
+  }
+
+  const handleExportSheets = async () => {
+    try {
+      setIsExporting(true)
+      const res = await fetchMachines({
         search: searchParam,
-        status: statusParam,
+        status: statusParam as 'all' | 'online' | 'offline',
         dateRange: dateRangeParam,
+        page: 1,
+        pageSize: 1000,
       })
-      toast.success('Machines report opened in new tab')
+      exportMachinesToSheets(res.data)
+      toast.success('Machines inventory exported as Sheets (CSV)')
+    } catch (err) {
+      logger.error('Failed to export machines inventory:', err)
+      toast.error('Failed to export machines inventory. Please try again.')
     } finally {
       setIsExporting(false)
     }
@@ -103,41 +134,50 @@ export function MachinesPage() {
   }
 
   const handleViewMachine = (machine: Machine) => {
-    toast.info(`Viewing machine: ${machine.code} (${machine.name})`)
+    setSelectedMachine(machine)
+    setIsModalOpen(true)
   }
 
   return (
     <div className="flex flex-col gap-4 w-full">
-      {/* Overview heading row */}
-      <MachinesHeader filteredMachines={machines} />
+      <PageHeader title="Machines" />
 
-      {/* KPI 3 summary cards row */}
-      <MachinesStats
-        registered={stats.registered}
-        online={stats.online}
-        offline={stats.offline}
+      <StatsGrid
+        ariaLabel="Machines Statistics"
+        columnsClassName="grid-cols-2 sm:grid-cols-3"
         isLoading={isLoading}
+        cards={[
+          { label: 'Registered machines', value: stats.registered, icon: Cpu },
+          { label: 'Online machines', value: stats.online, icon: Wifi },
+          { label: 'Offline machines', value: stats.offline, icon: WifiOff },
+        ]}
       />
 
-      {/* Machines directory container card */}
       <section
         aria-label="Machines directory"
-        className="flex flex-col gap-3.5 rounded-[20px] bg-white px-5 pt-4.5 pb-2.5 shadow-card w-full"
+        className="flex flex-col gap-3.5 rounded-[20px] bg-white px-4 sm:px-5 pt-4.5 pb-2.5 shadow-card w-full overflow-hidden"
       >
-        {/* Toolbar */}
-        <MachinesToolbar
+        <FilterToolbar
           search={searchParam}
           onSearchChange={(val) => updateParams({ search: val, page: 1 })}
+          searchId="machine-search"
+          searchLabel="Search machine"
+          searchPlaceholder="Search a name or an email address.."
           status={statusParam}
           onStatusChange={(val) => updateParams({ status: val, page: 1 })}
+          statusOptions={MACHINE_STATUS_OPTIONS}
+          statusId="machine-status-select"
+          statusAriaLabel="Filter by connection status"
           dateRange={dateRangeParam}
           onDateRangeChange={(val) => updateParams({ dateRange: val, page: 1 })}
-          onExport={handleExport}
+          dateId="machine-date-select"
+          dateAriaLabel="Filter by date registered"
+          onExportPdf={handleExportPdf}
+          onExportSheets={handleExportSheets}
           isExporting={isExporting}
         />
 
-        {/* Table with 20px space from toolbar */}
-        <div className="mt-[20px]">
+        <div className="mt-5">
           <MachinesTable
             machines={machines}
             isLoading={isLoading}
@@ -148,15 +188,25 @@ export function MachinesPage() {
           />
         </div>
 
-        {/* Pagination Footer */}
-        <MachinesPagination
+        <Pagination
           currentPage={pageParam}
           totalPages={totalPages}
           totalItems={totalItems}
           currentCount={machines.length}
+          pageSize={pageSize}
+          ariaLabel="Machines table pagination"
           onPageChange={(page) => updateParams({ page })}
         />
       </section>
+
+      <MachineInfoModal
+        isOpen={isModalOpen}
+        machine={selectedMachine}
+        onClose={() => {
+          setIsModalOpen(false)
+          setSelectedMachine(null)
+        }}
+      />
     </div>
   )
 }

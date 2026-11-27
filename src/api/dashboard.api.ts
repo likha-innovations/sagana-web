@@ -17,8 +17,13 @@ import {
   formatBatchDate,
 } from '@/types/batch'
 import { batchApi } from './batch.api'
-import { fetchMachineStats, type MachineStatsData } from './machine.api'
-import { fetchOperatorStats, type OperatorStatsData } from './operator.api'
+import { fetchMachineStats } from './machine.api'
+import type { MachineStatsData } from '@/types/machine'
+import { createLogger } from '@/lib/logger'
+
+const logger = createLogger('Dashboard')
+import { fetchOperatorStats } from './operator.api'
+import type { OperatorStatsData } from '@/types/operator'
 
 export function computeDashboardData(
   machineStats: MachineStatsData,
@@ -32,7 +37,7 @@ export function computeDashboardData(
     (b) => !b.completionDate && b.status?.toLowerCase() !== 'completed'
   )
 
-  // 1. Derive KPIs
+
   const totalWaste = batches.reduce((sum, b) => sum + (b.totalWeight ?? 0), 0)
   const compostProducedNum = completedBatches.reduce(
     (sum, b) => sum + (b.finalWeight ?? b.totalWeight ?? 0),
@@ -101,7 +106,7 @@ export function computeDashboardData(
     },
   ]
 
-  // 2. Active batches by phase
+
   let coolingCount = 0
   let thermophilicCount = 0
   let mesophilicCount = 0
@@ -119,13 +124,13 @@ export function computeDashboardData(
     { name: 'Mesophilic', value: mesophilicCount, color: '#566811' },
   ]
 
-  // 3. Operator accounts distribution
+
   const userStatusData: UserStatusSegment[] = [
     { name: 'Active', value: operatorStats.active, color: '#97BC39' },
     { name: 'Suspended', value: operatorStats.inactive, color: '#DCDBD5' },
   ]
 
-  // 4. Recent completed batches
+
   const recentBatches: BatchRow[] = completedBatches.slice(0, 5).map((b) => ({
     id: b.batchCode,
     account: 'Operator',
@@ -148,11 +153,11 @@ export function computeDashboardData(
 export async function fetchDashboardData(): Promise<DashboardData> {
   const [machineStats, operatorStats, batches] = await Promise.all([
     fetchMachineStats().catch((err) => {
-      console.warn('[Dashboard] Failed to fetch machine stats:', err)
+      logger.warn('Failed to fetch machine stats:', err)
       return { registered: 0, online: 0, offline: 0 }
     }),
     fetchOperatorStats().catch((err) => {
-      console.warn('[Dashboard] Failed to fetch operator stats:', err)
+      logger.warn('Failed to fetch operator stats:', err)
       return {
         total: 0,
         active: 0,
@@ -162,7 +167,7 @@ export async function fetchDashboardData(): Promise<DashboardData> {
       }
     }),
     batchApi.list().catch((err) => {
-      console.warn('[Dashboard] Failed to fetch batches:', err)
+      logger.warn('Failed to fetch batches:', err)
       return []
     }),
   ])

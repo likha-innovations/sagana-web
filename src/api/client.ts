@@ -80,7 +80,7 @@ export async function apiFetch<T>(
 
     logger.info(`[HTTP ${response.status}] ${method} ${endpoint} (${duration}ms)`)
 
-    // Auto-unwrap backend TransformResponseInterceptor envelope
+
     if (json && typeof json === 'object' && 'data' in json) {
       return (json as ApiResponse<T>).data
     }

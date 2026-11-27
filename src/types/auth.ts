@@ -30,32 +30,6 @@ export const signInSchema = z.object({
 
 export type SignInInput = z.infer<typeof signInSchema>
 
-export const signUpSchema = z.object({
-  fullName: z
-    .string()
-    .trim()
-    .min(2, 'Full name must be at least 2 characters'),
-  email: z
-    .string()
-    .trim()
-    .min(1, 'Email is required')
-    .email('Please enter a valid email address'),
-  password: z
-    .string()
-    .min(8, 'Password must be at least 8 characters'),
-  role: z.enum(['operator', 'admin']),
-  contactNumber: z
-    .string()
-    .trim()
-    .optional(),
-  location: z
-    .string()
-    .trim()
-    .optional(),
-})
-
-export type SignUpInput = z.infer<typeof signUpSchema>
-
 export const updateProfileSchema = z.object({
   fullName: z.string().min(2, 'Full name must be at least 2 characters').optional(),
   contactNumber: z.string().optional(),
@@ -63,3 +37,34 @@ export const updateProfileSchema = z.object({
 })
 
 export type UpdateProfileInput = z.infer<typeof updateProfileSchema>
+
+export const resetPasswordRequestSchema = z.object({
+  email: z
+    .string()
+    .trim()
+    .min(1, 'Please enter your email address')
+    .email('Please enter a valid email address'),
+})
+
+export type ResetPasswordRequestInput = z.infer<typeof resetPasswordRequestSchema>
+
+export const verifyCodeSchema = z.object({
+  code: z
+    .string()
+    .trim()
+    .regex(/^\d{6}$/, 'Verification code must be exactly 6 digits'),
+})
+
+export type VerifyCodeInput = z.infer<typeof verifyCodeSchema>
+
+export const resetPasswordConfirmSchema = z.object({
+  code: z
+    .string()
+    .trim()
+    .regex(/^\d{6}$/, 'Reset code must be exactly 6 digits'),
+  password: z
+    .string()
+    .min(12, 'Password must contain at least 12 characters'),
+})
+
+export type ResetPasswordConfirmInput = z.infer<typeof resetPasswordConfirmSchema>

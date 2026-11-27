@@ -1,4 +1,9 @@
-﻿# UI Design & Styling Rules (ui-craftsman)
+---
+trigger: always_on
+description: UI design tokens, component primitives, lucide-react icons, and sonner toast rules for sagana-web
+---
+
+# UI Design & Styling Rules (ui-craftsman)
 
 ## 1. Component Standards (Radix UI + CVA)
 - Use Radix UI primitives with class-variance-authority (cva) in src/components/ui/ for all core primitives: Button, Input, Card, Badge, Label.

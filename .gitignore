@@ -30,3 +30,6 @@ dist-ssr
 docs/.vitepress/dist/
 docs/.vitepress/cache/
 
+tasks/
+tasks
+
