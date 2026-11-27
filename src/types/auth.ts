@@ -31,9 +31,9 @@ export const signInSchema = z.object({
 export type SignInInput = z.infer<typeof signInSchema>
 
 export const updateProfileSchema = z.object({
-  fullName: z.string().min(2, 'Full name must be at least 2 characters').optional(),
-  contactNumber: z.string().optional(),
-  location: z.string().optional(),
+  firstName: z.string().trim().min(2, 'First name must be at least 2 characters').optional(),
+  lastName: z.string().trim().min(2, 'Last name must be at least 2 characters').optional(),
+  birthday: z.string().trim().optional(),
 })
 
 export type UpdateProfileInput = z.infer<typeof updateProfileSchema>

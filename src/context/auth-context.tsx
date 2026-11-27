@@ -4,6 +4,7 @@ import { useSignIn } from '@clerk/react/legacy'
 import {
   type User,
   type UserRole,
+  type UpdateProfileInput,
   signInSchema,
   verifyCodeSchema,
   resetPasswordRequestSchema,
@@ -39,6 +40,7 @@ interface AuthContextType {
   resetPassword: (newPassword: string, code?: string) => Promise<void>
   verifyCurrentPassword: (currentPassword: string) => Promise<void>
   updatePassword: (currentPassword: string, newPassword: string) => Promise<void>
+  updateProfile: (data: UpdateProfileInput) => Promise<User>
   signOut: (options?: { skipRedirect?: boolean }) => Promise<void>
 }
 
@@ -342,6 +344,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [clerkUser]
   )
 
+  const updateProfile = useCallback(async (data: UpdateProfileInput) => {
+    const updated = await userApi.updateProfile(data)
+    setDbUser(updated)
+    return updated
+  }, [])
+
   const signOut = useCallback(
     async (options?: { skipRedirect?: boolean }) => {
       logger.info('Signing out active user session')
@@ -409,6 +417,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       resetPassword,
       verifyCurrentPassword,
       updatePassword,
+      updateProfile,
       signOut,
     }),
     [
@@ -427,6 +436,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       resetPassword,
       verifyCurrentPassword,
       updatePassword,
+      updateProfile,
       signOut,
     ]
   )
