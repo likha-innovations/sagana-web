@@ -1,8 +1,10 @@
 import {
   KEEP_SIGNED_IN_KEY,
   TAB_SESSION_KEY,
+  SessionPersistenceError,
   clearSessionPersistence,
   persistKeepSignedIn,
+  requireKeepSignedInPersistence,
   shouldExpireSessionOnBoot,
   type StorageLike,
 } from '@/lib/session-persistence'
@@ -93,5 +95,16 @@ describe('Session Persistence (Keep me signed in)', () => {
     expect(shouldExpireSessionOnBoot({ local: throwingLocal, session: createMemoryStorage() })).toBe(
       false
     )
+  })
+
+  it('rejects keepSignedIn=false activation when storage fails, while allowing keepSignedIn=true', () => {
+    expect(() => requireKeepSignedInPersistence(false, null)).toThrow(SessionPersistenceError)
+    expect(requireKeepSignedInPersistence(true, null)).toBe(false)
+    expect(
+      requireKeepSignedInPersistence(false, {
+        local: createMemoryStorage(),
+        session: createMemoryStorage(),
+      })
+    ).toBe(true)
   })
 })

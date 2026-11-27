@@ -14,7 +14,7 @@ import { setAuthTokenGetter } from '@/lib/auth-token'
 import { createLogger } from '@/lib/logger'
 import {
   clearSessionPersistence,
-  persistKeepSignedIn,
+  requireKeepSignedInPersistence,
   shouldExpireSessionOnBoot,
 } from '@/lib/session-persistence'
 import { extractClerkErrorMessage } from '@/lib/password-reset'
@@ -178,10 +178,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (attempt.status === 'complete') {
           logger.info(`Sign in complete for ${email}`)
 
-          const persisted = persistKeepSignedIn(keepSignedIn)
-          if (!persisted && !keepSignedIn) {
-            logger.warn('Browser storage unavailable; keep-signed-in=false cannot be persisted')
-          }
+          requireKeepSignedInPersistence(keepSignedIn)
           await setSignInActive({ session: attempt.createdSessionId })
 
           let verifiedRole: string | null = null

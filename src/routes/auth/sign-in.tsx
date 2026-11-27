@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react'
 import { Link, Navigate, useNavigate, useSearchParams } from 'react-router'
 import { toast } from 'sonner'
 import { useAuthContext } from '@/context/auth-context'
+import { SessionPersistenceError } from '@/lib/session-persistence'
 import { createLogger } from '@/lib/logger'
 import { AlertCircle, Eye, EyeOff, Loader2 } from 'lucide-react'
 import saganaLogo from '@/assets/sagana-logo.png'
@@ -60,8 +61,15 @@ export function SignInPage() {
       navigate('/admin')
     } catch (err: unknown) {
       logger.warn('Sign-in failed:', err)
-      setHasError(true)
 
+      if (err instanceof SessionPersistenceError) {
+        setHasError(false)
+        setErrorMessage(err.message)
+        toast.error(err.message)
+        return
+      }
+
+      setHasError(true)
       const rawMessage = (err as Error)?.message || ''
       if (/too many/i.test(rawMessage)) {
         const msg = 'Too many failed attempts, you may try again later'
@@ -212,7 +220,12 @@ export function SignInPage() {
                   id="keep-signed-in"
                   type="checkbox"
                   checked={keepSignedIn}
-                  onChange={(e) => setKeepSignedIn(e.target.checked)}
+                  onChange={(e) => {
+                    setKeepSignedIn(e.target.checked)
+                    if (!hasError && errorMessage) {
+                      setErrorMessage(null)
+                    }
+                  }}
                   className="appearance-none h-5 w-5 min-h-5 min-w-5 rounded-lg border border-border bg-white checked:bg-primary checked:border-primary cursor-pointer transition-colors relative after:content-[''] after:absolute after:left-1.5 after:top-0.5 after:w-1.5 after:h-2.5 after:border-white after:border-r-2 after:border-b-2 after:rotate-45 after:opacity-0 checked:after:opacity-100"
                 />
                 <span className="text-text-email text-xs sm:text-sm">Keep me signed in</span>

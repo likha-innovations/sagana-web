@@ -9,6 +9,15 @@ export interface StorageLike {
 export const KEEP_SIGNED_IN_KEY = 'sagana_keep_signed_in'
 export const TAB_SESSION_KEY = 'sagana_tab_session'
 
+export class SessionPersistenceError extends Error {
+  constructor(
+    message = 'Browser storage is unavailable, so temporary sessions cannot be enforced. Enable browser storage or select "Keep me signed in" to continue.'
+  ) {
+    super(message)
+    this.name = 'SessionPersistenceError'
+  }
+}
+
 function getBrowserStorages(): { local: StorageLike; session: StorageLike } | null {
   if (typeof window === 'undefined') return null
   try {
@@ -52,6 +61,17 @@ export function persistKeepSignedIn(
     }
     return false
   }
+}
+
+export function requireKeepSignedInPersistence(
+  keepSignedIn: boolean,
+  storages = getBrowserStorages()
+): boolean {
+  const persisted = persistKeepSignedIn(keepSignedIn, storages)
+  if (!persisted && !keepSignedIn) {
+    throw new SessionPersistenceError()
+  }
+  return persisted
 }
 
 export function clearSessionPersistence(storages = getBrowserStorages()): void {
