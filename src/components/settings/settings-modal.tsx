@@ -4,7 +4,7 @@ import { AlertCircle, Check, ChevronLeft, Eye, EyeOff, KeyRound, Loader2, LogOut
 import { useUser } from '@clerk/react'
 import { toast } from 'sonner'
 import { useAuthContext } from '@/context/auth-context'
-import { userApi } from '@/api/user.api'
+import { updateProfileSchema, type UpdateProfileInput } from '@/types/auth'
 import { PasswordChecklist } from '@/components/auth/password-checklist'
 import { extractClerkErrorMessage, isPasswordValid } from '@/lib/password-reset'
 import { useDialogFocus } from '@/hooks/use-dialog-focus'
@@ -22,7 +22,7 @@ interface AccountSettingsModalProps {
 
 function AccountSettingsModalContent({ onClose }: { onClose: () => void }) {
   const navigate = useNavigate()
-  const { user, role, signOut, verifyCurrentPassword, updatePassword, preparePasswordReset } = useAuthContext()
+  const { user, role, signOut, verifyCurrentPassword, updatePassword, updateProfile, preparePasswordReset } = useAuthContext()
   const { user: clerkUser } = useUser()
 
   const displayName = user?.fullName || clerkUser?.fullName || 'Administrator'
@@ -109,15 +109,23 @@ function AccountSettingsModalContent({ onClose }: { onClose: () => void }) {
   const handleSaveChanges = async (e: FormEvent) => {
     e.preventDefault()
     if (!hasNameChanged) return
+    const trimmedFirst = firstName.trim()
+    const trimmedLast = lastName.trim()
+    const payload: UpdateProfileInput = {
+      firstName: trimmedFirst,
+      ...(trimmedLast || savedLastName ? { lastName: trimmedLast } : {}),
+    }
+    const parsed = updateProfileSchema.safeParse(payload)
+    if (!parsed.success) {
+      toast.error(parsed.error.issues[0]?.message || 'First and last names must be at least 2 characters')
+      return
+    }
     setIsSaving(true)
     try {
-      const trimmedFirst = firstName.trim()
-      const trimmedLast = lastName.trim()
-      const fullName = `${trimmedFirst} ${trimmedLast}`.trim()
+      await updateProfile(parsed.data)
       if (clerkUser) {
         await clerkUser.update({ firstName: trimmedFirst, lastName: trimmedLast })
       }
-      await userApi.updateProfile({ fullName })
       setSavedFirstName(trimmedFirst)
       setSavedLastName(trimmedLast)
       toast.success('Profile information has been updated')
