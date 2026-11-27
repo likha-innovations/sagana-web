@@ -1,4 +1,11 @@
-import type { Machine } from '@/api/machine.api'
+import {
+  getMachineCode,
+  getMachineCurrentBatch,
+  getMachineRegisteredBy,
+  isMachineOnline,
+  type Machine,
+} from '@/types/machine'
+import { formatDate } from './utils'
 import {
   exportTablePdf,
   formatPdfDateRange,
@@ -28,7 +35,7 @@ export function exportMachinesReport({
   status = 'all',
   dateRange = 'All Time',
 }: ExportMachinesReportOptions): void {
-  const onlineCount = machines.filter((m) => m.status === 'online').length
+  const onlineCount = machines.filter((m) => isMachineOnline(m)).length
   const offlineCount = machines.length - onlineCount
   const searchLabel = search.trim() ? `"${search.trim()}"` : 'All Machines'
 
@@ -41,14 +48,17 @@ export function exportMachinesReport({
     ],
     summary: `Summary: ${machines.length} total machine${machines.length === 1 ? '' : 's'} (${onlineCount} online, ${offlineCount} offline)`,
     columns: MACHINE_COLUMNS,
-    rows: machines.map((m) => [
-      m.code,
-      m.name,
-      m.registeredBy?.name || '—',
-      m.status === 'online' ? 'Online' : 'Offline',
-      m.currentBatch ? `${m.currentBatch.code} (${m.currentBatch.stage})` : 'Idle / None',
-      m.dateRegistered,
-    ]),
+    rows: machines.map((m) => {
+      const batch = getMachineCurrentBatch(m)
+      return [
+        getMachineCode(m),
+        m.name,
+        getMachineRegisteredBy(m) || '—',
+        isMachineOnline(m) ? 'Online' : 'Offline',
+        batch ? `${batch.code} (${batch.stage})` : 'Idle / None',
+        formatDate(m.createdAt),
+      ]
+    }),
     emptyMessage: 'No machines found matching criteria',
   })
 }

@@ -1,8 +1,19 @@
-import type { OperatorAccount } from '@/api/operator.api'
-import type { Machine } from '@/api/machine.api'
+import {
+  getOperatorBarangayName,
+  getOperatorName,
+  type OperatorAccount,
+} from '@/types/operator'
+import {
+  getMachineCode,
+  getMachineCurrentBatch,
+  getMachineRegisteredBy,
+  isMachineOnline,
+  type Machine,
+} from '@/types/machine'
 import type { CompostBatch } from '@/types/batch'
 import type { DashboardData } from '@/types/dashboard'
 import { getBatchPhase, getDaysComposting, formatBatchDate } from '@/types/batch'
+import { formatDate } from './utils'
 import { downloadCsv } from './csv-utils'
 
 function getTimestampSuffix(): string {
@@ -21,17 +32,15 @@ export function exportOperatorsToSheets(accounts: OperatorAccount[]): void {
     'Barangay',
     'Status',
     'Date Joined',
-    'Phone',
   ]
 
   const rows = accounts.map((acc) => [
     acc.id,
-    acc.name,
+    getOperatorName(acc),
     acc.email,
-    acc.barangay,
+    getOperatorBarangayName(acc),
     acc.status.toUpperCase(),
-    acc.dateJoined,
-    acc.phone ?? 'N/A',
+    formatDate(acc.createdAt),
   ])
 
   downloadCsv(`operator-accounts-${getTimestampSuffix()}`, headers, rows)
@@ -71,14 +80,18 @@ export function exportMachinesToSheets(machines: Machine[]): void {
     'Date Registered',
   ]
 
-  const rows = machines.map((m) => [
-    m.code,
-    m.name,
-    m.registeredBy?.name ?? '—',
-    m.status.toUpperCase(),
-    m.currentBatch ? `${m.currentBatch.code} (${m.currentBatch.stage})` : 'Idle / None',
-    m.dateRegistered,
-  ])
+  const rows = machines.map((m) => {
+    const batch = getMachineCurrentBatch(m)
+    const status = isMachineOnline(m) ? 'ONLINE' : 'OFFLINE'
+    return [
+      getMachineCode(m),
+      m.name,
+      getMachineRegisteredBy(m) ?? '—',
+      status,
+      batch ? `${batch.code} (${batch.stage})` : 'Idle / None',
+      formatDate(m.createdAt),
+    ]
+  })
 
   downloadCsv(`machines-inventory-${getTimestampSuffix()}`, headers, rows)
 }

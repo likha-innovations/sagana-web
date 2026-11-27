@@ -1,4 +1,11 @@
-import { mapBackendMachine, fetchMachines, fetchMachineStats, type BackendMachine } from '@/api/machine.api'
+import { fetchMachines, fetchMachineStats } from '@/api/machine.api'
+import {
+  getMachineCode,
+  getMachineCurrentBatch,
+  getMachineRegisteredBy,
+  isMachineOnline,
+  type Machine,
+} from '@/types/machine'
 import { api } from '@/api/client'
 
 jest.mock('@/api/client', () => ({
@@ -8,7 +15,7 @@ jest.mock('@/api/client', () => ({
 }))
 
 describe('machine.api', () => {
-  const mockBackendMachine: BackendMachine = {
+  const mockMachine: Machine = {
     id: 'm-1',
     barangayId: 'b-1',
     macAddress: 'AA:BB:CC:DD:EE:FF',
@@ -32,27 +39,22 @@ describe('machine.api', () => {
     jest.clearAllMocks()
   })
 
-  describe('mapBackendMachine', () => {
-    it('maps backend machine to frontend machine model with status and current batch', () => {
-      const machine = mapBackendMachine(mockBackendMachine)
-      expect(machine.id).toBe('m-1')
-      expect(machine.name).toBe('Composter Alpha')
-      expect(machine.status).toBe('online')
-      expect(machine.registeredBy.name).toBe('Juan Dela Cruz')
-      expect(machine.registeredBy.initials).toBe('JD')
-      expect(machine.currentBatch?.code).toBe('QC-1001')
+  describe('Machine helpers', () => {
+    it('derives display helpers directly from backend Machine properties', () => {
+      expect(getMachineCode(mockMachine)).toBe('DDEEFF')
+      expect(isMachineOnline(mockMachine)).toBe(true)
+      expect(getMachineRegisteredBy(mockMachine)).toBe('Juan Dela Cruz')
+      expect(getMachineCurrentBatch(mockMachine)?.code).toBe('QC-1001')
     })
 
-    it('maps offline status when status is inactive', () => {
-      const offlineMachine = { ...mockBackendMachine, status: 'inactive' }
-      const machine = mapBackendMachine(offlineMachine)
-      expect(machine.status).toBe('offline')
+    it('treats inactive status as offline', () => {
+      expect(isMachineOnline({ status: 'inactive' })).toBe(false)
     })
   })
 
   describe('fetchMachines', () => {
     it('calls GET /machines and filters by search', async () => {
-      jest.mocked(api.get).mockResolvedValueOnce([mockBackendMachine])
+      jest.mocked(api.get).mockResolvedValueOnce([mockMachine])
 
       const result = await fetchMachines({ search: 'Alpha' })
       expect(api.get).toHaveBeenCalledWith('/machines')
@@ -63,12 +65,12 @@ describe('machine.api', () => {
 
   describe('fetchMachineStats', () => {
     it('computes online and offline stats accurately', async () => {
-      const offlineMachine: BackendMachine = {
-        ...mockBackendMachine,
+      const offlineMachine: Machine = {
+        ...mockMachine,
         id: 'm-2',
         status: 'offline',
       }
-      jest.mocked(api.get).mockResolvedValueOnce([mockBackendMachine, offlineMachine])
+      jest.mocked(api.get).mockResolvedValueOnce([mockMachine, offlineMachine])
 
       const stats = await fetchMachineStats()
       expect(stats.registered).toBe(2)
@@ -77,4 +79,3 @@ describe('machine.api', () => {
     })
   })
 })
-

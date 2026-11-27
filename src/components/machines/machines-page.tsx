@@ -2,6 +2,7 @@ import { useState, useCallback } from 'react'
 import { useSearchParams } from 'react-router'
 import { Cpu, Wifi, WifiOff } from 'lucide-react'
 import { toast } from 'sonner'
+import { createLogger } from '@/lib/logger'
 import { PageHeader } from '@/components/ui/page-header'
 import { StatsGrid } from '@/components/ui/stats-grid'
 import { FilterToolbar } from '@/components/ui/filter-toolbar'
@@ -10,9 +11,12 @@ import { type DropdownOption } from '@/components/ui/custom-dropdown'
 import { MachinesTable } from './machines-table'
 import { MachineInfoModal } from './machine-info-modal'
 import { useMachines, useMachineStats } from '@/hooks/use-machines'
-import { fetchMachines, type Machine } from '@/api/machine.api'
+import { fetchMachines } from '@/api/machine.api'
+import type { Machine } from '@/types/machine'
 import { exportMachinesReport } from '@/lib/export-machines-report'
 import { exportMachinesToSheets } from '@/lib/export-sheets'
+
+const logger = createLogger('MachinesPage')
 
 const MACHINE_STATUS_OPTIONS: DropdownOption[] = [
   { value: 'all', label: 'All statuses' },
@@ -86,20 +90,15 @@ export function MachinesPage() {
         pageSize: 1000,
       })
       exportMachinesReport({
-        machines: res.data.length > 0 ? res.data : machines,
+        machines: res.data,
         search: searchParam,
         status: statusParam,
         dateRange: dateRangeParam,
       })
       toast.success('Machines report opened in new tab')
-    } catch {
-      exportMachinesReport({
-        machines,
-        search: searchParam,
-        status: statusParam,
-        dateRange: dateRangeParam,
-      })
-      toast.success('Machines report opened in new tab')
+    } catch (err) {
+      logger.error('Failed to export machines report:', err)
+      toast.error('Failed to export machines report. Please try again.')
     } finally {
       setIsExporting(false)
     }
@@ -115,11 +114,11 @@ export function MachinesPage() {
         page: 1,
         pageSize: 1000,
       })
-      exportMachinesToSheets(res.data.length > 0 ? res.data : machines)
+      exportMachinesToSheets(res.data)
       toast.success('Machines inventory exported as Sheets (CSV)')
-    } catch {
-      exportMachinesToSheets(machines)
-      toast.success('Machines inventory exported as Sheets (CSV)')
+    } catch (err) {
+      logger.error('Failed to export machines inventory:', err)
+      toast.error('Failed to export machines inventory. Please try again.')
     } finally {
       setIsExporting(false)
     }

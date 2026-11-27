@@ -1,5 +1,12 @@
 import { Skeleton } from '@/ui/skeleton'
-import type { Machine } from '@/api/machine.api'
+import {
+  getMachineCode,
+  getMachineCurrentBatch,
+  getMachineRegisteredBy,
+  isMachineOnline,
+  type Machine,
+} from '@/types/machine'
+import { formatDate, getInitials } from '@/lib/utils'
 
 interface MachinesTableProps {
   machines: Machine[]
@@ -93,17 +100,22 @@ export function MachinesTable({
     <>
       <div className="flex flex-col gap-3 sm:hidden">
         {machines.map((machine) => {
-          const isOnline = machine.status === 'online'
+          const isOnline = isMachineOnline(machine)
+          const code = getMachineCode(machine)
+          const registeredBy = getMachineRegisteredBy(machine)
+          const currentBatch = getMachineCurrentBatch(machine)
+          const dateRegistered = formatDate(machine.createdAt)
           return (
-            <div
+            <button
+              type="button"
               key={machine.id}
               onClick={() => onView?.(machine)}
-              className="rounded-2xl border border-border bg-white p-4 active:bg-[#F2F1EB] transition-colors cursor-pointer"
+              className="w-full text-left rounded-2xl border border-border bg-white p-4 active:bg-[#F2F1EB] transition-colors cursor-pointer"
             >
               <div className="flex items-center justify-between mb-3">
                 <div className="min-w-0">
                   <p className="text-sm font-semibold text-foreground truncate">{machine.name}</p>
-                  <p className="text-xs text-text-email">{machine.code}</p>
+                  <p className="text-xs text-text-email">{code}</p>
                 </div>
                 <span className={`inline-flex shrink-0 items-center rounded-full px-2.5 py-1 text-xs font-semibold leading-none ${isOnline ? 'bg-[#E4F4D6] text-[#3D7826]' : 'bg-[#FFEAEB] text-[#D92D20]'}`}>
                   {isOnline ? 'Online' : 'Offline'}
@@ -112,18 +124,18 @@ export function MachinesTable({
               <div className="flex flex-col gap-1.5 text-xs">
                 <div className="flex items-center justify-between">
                   <span className="text-text-email">Registered by</span>
-                  <span className="text-foreground truncate ml-4 text-right">{machine.registeredBy.name}</span>
+                  <span className="text-foreground truncate ml-4 text-right">{registeredBy}</span>
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-text-email">Current batch</span>
-                  <span className="text-foreground truncate ml-4 text-right">{machine.currentBatch?.code || '—'}</span>
+                  <span className="text-foreground truncate ml-4 text-right">{currentBatch?.code || '—'}</span>
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-text-email">Date registered</span>
-                  <span className="text-foreground">{machine.dateRegistered}</span>
+                  <span className="text-foreground">{dateRegistered}</span>
                 </div>
               </div>
-            </div>
+            </button>
           )
         })}
       </div>
@@ -143,15 +155,20 @@ export function MachinesTable({
           </thead>
           <tbody className="divide-y divide-border">
             {machines.map((machine) => {
-              const isOnline = machine.status === 'online'
+              const isOnline = isMachineOnline(machine)
+              const code = getMachineCode(machine)
+              const registeredBy = getMachineRegisteredBy(machine)
+              const registeredInitials = getInitials(registeredBy, 'OP')
+              const currentBatch = getMachineCurrentBatch(machine)
+              const dateRegistered = formatDate(machine.createdAt)
               return (
                 <tr key={machine.id} onClick={() => onView?.(machine)} className="min-h-[58px] transition-colors hover:bg-[#F2F1EB]/70 cursor-pointer">
-                  <td className="py-3 pr-3"><span className="text-xs font-semibold leading-[140%] text-foreground">{machine.code}</span></td>
+                  <td className="py-3 pr-3"><span className="text-xs font-semibold leading-[140%] text-foreground">{code}</span></td>
                   <td className="py-3 pr-3"><span className="text-xs font-normal leading-[140%] text-foreground">{machine.name}</span></td>
                   <td className="py-3 pr-3">
                     <div className="flex items-center gap-3">
-                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-brand-100 text-xs font-normal leading-none text-brand-700">{machine.registeredBy.initials}</div>
-                      <span className="truncate text-xs font-normal leading-[140%] text-foreground">{machine.registeredBy.name}</span>
+                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-brand-100 text-xs font-normal leading-none text-brand-700">{registeredInitials}</div>
+                      <span className="truncate text-xs font-normal leading-[140%] text-foreground">{registeredBy}</span>
                     </div>
                   </td>
                   <td className="py-3 pr-3">
@@ -160,16 +177,16 @@ export function MachinesTable({
                     </span>
                   </td>
                   <td className="py-3 pr-3">
-                    {machine.currentBatch ? (
+                    {currentBatch ? (
                       <div className="flex flex-col gap-0.5">
-                        <span className="text-xs font-normal leading-[1.3] text-foreground break-words">{machine.currentBatch.code}</span>
-                        <span className="text-xs font-normal leading-[1.3] text-text-email">{machine.currentBatch.stage}</span>
+                        <span className="text-xs font-normal leading-[1.3] text-foreground break-words">{currentBatch.code}</span>
+                        <span className="text-xs font-normal leading-[1.3] text-text-email">{currentBatch.stage}</span>
                       </div>
                     ) : (
                       <span className="text-xs text-text-email">—</span>
                     )}
                   </td>
-                  <td className="py-3 pr-3 text-xs font-normal text-foreground">{machine.dateRegistered}</td>
+                  <td className="py-3 pr-3 text-xs font-normal text-foreground">{dateRegistered}</td>
                   <td className="py-3 text-right pr-10" onClick={(e) => e.stopPropagation()}>
                     <button type="button" onClick={() => onView?.(machine)} className="inline-block text-xs font-bold leading-none text-primary hover:underline cursor-pointer">View</button>
                   </td>

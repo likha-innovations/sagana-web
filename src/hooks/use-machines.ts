@@ -1,11 +1,10 @@
 import { useQuery } from '@tanstack/react-query'
-import {
-  fetchMachines,
-  fetchMachineStats,
-  type MachineQueryParams,
-  type MachineListResponse,
-  type MachineStatsData,
-} from '@/api/machine.api'
+import { fetchMachines, fetchMachineStats } from '@/api/machine.api'
+import type {
+  MachineListResponse,
+  MachineQueryParams,
+  MachineStatsData,
+} from '@/types/machine'
 
 export const machineKeys = {
   all: ['machines'] as const,

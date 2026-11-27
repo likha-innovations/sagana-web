@@ -17,11 +17,13 @@ import {
   formatBatchDate,
 } from '@/types/batch'
 import { batchApi } from './batch.api'
-import { fetchMachineStats, type MachineStatsData } from './machine.api'
+import { fetchMachineStats } from './machine.api'
+import type { MachineStatsData } from '@/types/machine'
 import { createLogger } from '@/lib/logger'
 
 const logger = createLogger('Dashboard')
-import { fetchOperatorStats, type OperatorStatsData } from './operator.api'
+import { fetchOperatorStats } from './operator.api'
+import type { OperatorStatsData } from '@/types/operator'
 
 export function computeDashboardData(
   machineStats: MachineStatsData,

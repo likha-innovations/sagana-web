@@ -1,23 +1,19 @@
-import { useMemo } from 'react'
+import { useMemo, useRef } from 'react'
 import { X } from 'lucide-react'
-import type { Machine } from '@/api/machine.api'
+import {
+  getMachineCode,
+  getMachineCurrentBatch,
+  getMachineRegisteredBy,
+  type Machine,
+} from '@/types/machine'
 import { useBatches } from '@/hooks/use-batches'
+import { useDialogFocus } from '@/hooks/use-dialog-focus'
+import { formatDate } from '@/lib/utils'
 
 interface MachineInfoModalProps {
   isOpen: boolean
   machine: Machine | null
   onClose: () => void
-}
-
-function formatDate(dateStr?: string | null): string {
-  if (!dateStr) return '—'
-  const d = new Date(dateStr)
-  if (isNaN(d.getTime())) return dateStr
-  return d.toLocaleDateString('en-US', {
-    month: 'short',
-    day: '2-digit',
-    year: 'numeric',
-  })
 }
 
 interface BatchDisplayItem {
@@ -32,7 +28,14 @@ export function MachineInfoModal({
   machine,
   onClose,
 }: MachineInfoModalProps) {
+  const dialogRef = useRef<HTMLDivElement>(null)
   const { data: batchesData } = useBatches({ pageSize: 100 })
+
+  useDialogFocus({
+    isOpen: isOpen && Boolean(machine),
+    dialogRef,
+    onClose,
+  })
 
   const machineBatches = useMemo<BatchDisplayItem[]>(() => {
     if (!machine) return []
@@ -70,7 +73,11 @@ export function MachineInfoModal({
     >
       <div className="fixed inset-0" onClick={onClose} aria-hidden="true" />
 
-      <div className="relative w-full max-w-196.5 max-h-[90vh] overflow-y-auto rounded-[22px] sm:rounded-[28px] bg-[#F8F7F2] shadow-2xl animate-in zoom-in-95 duration-200">
+      <div
+        ref={dialogRef}
+        tabIndex={-1}
+        className="relative w-full max-w-196.5 max-h-[90vh] overflow-y-auto rounded-[22px] sm:rounded-[28px] bg-[#F8F7F2] shadow-2xl animate-in zoom-in-95 duration-200 outline-none"
+      >
         <div className="flex items-center justify-between px-5 sm:px-8 py-5 border-b border-border">
           <h2 className="text-base font-bold text-foreground">
             Machine Information
@@ -101,7 +108,7 @@ export function MachineInfoModal({
                 Machine ID
               </label>
               <div className="h-11 sm:h-13 w-full rounded-[14px] sm:rounded-[18px] border border-border bg-[#F5F5F3] px-4 sm:px-5 flex items-center text-xs text-text-email">
-                {machine.code}
+                {getMachineCode(machine)}
               </div>
             </div>
             <div>
@@ -109,7 +116,7 @@ export function MachineInfoModal({
                 Registered by
               </label>
               <div className="h-11 sm:h-13 w-full rounded-[14px] sm:rounded-[18px] border border-border bg-[#F5F5F3] px-4 sm:px-5 flex items-center text-xs text-text-email truncate">
-                {machine.registeredBy.name}
+                {getMachineRegisteredBy(machine)}
               </div>
             </div>
           </div>
@@ -120,7 +127,7 @@ export function MachineInfoModal({
                 Date registered
               </label>
               <div className="h-11 sm:h-13 w-full rounded-[14px] sm:rounded-[18px] border border-border bg-[#F5F5F3] px-4 sm:px-5 flex items-center text-xs text-text-email">
-                {machine.dateRegistered}
+                {formatDate(machine.createdAt)}
               </div>
             </div>
             <div>
@@ -128,7 +135,7 @@ export function MachineInfoModal({
                 Current batch
               </label>
               <div className="h-11 sm:h-13 w-full rounded-[14px] sm:rounded-[18px] border border-border bg-[#F5F5F3] px-4 sm:px-5 flex items-center text-xs text-text-email">
-                {machine.currentBatch?.code || '—'}
+                {getMachineCurrentBatch(machine)?.code || '—'}
               </div>
             </div>
           </div>
