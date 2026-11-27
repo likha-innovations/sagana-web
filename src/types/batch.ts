@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { formatDate, type PaginatedResult } from '@/lib/utils'
 
 export const batchFeedstockSchema = z.object({
   id: z.string(),
@@ -46,6 +47,23 @@ export type CompostBatch = z.infer<typeof compostBatchSchema>
 export type Batch = CompostBatch
 export type BatchPhase = 'Cooling' | 'Thermophilic' | 'Mesophilic' | 'Completed'
 
+export interface BatchStatsData {
+  allTimeTotalProduced: string
+  totalCompostBatches: number
+  finishedBatches: number
+  ongoingBatches: number
+}
+
+export interface BatchQueryParams {
+  search?: string
+  status?: 'all' | string
+  dateRange?: string
+  page?: number
+  pageSize?: number
+}
+
+export type BatchListResponse = PaginatedResult<CompostBatch>
+
 export function getBatchPhase(batch: CompostBatch): BatchPhase {
   if (batch.completionDate || batch.status?.toLowerCase() === 'completed') {
     return 'Completed'
@@ -65,8 +83,5 @@ export function getDaysComposting(batch: CompostBatch): number {
 }
 
 export function formatBatchDate(dateStr: string): string {
-  const d = new Date(dateStr)
-  return isNaN(d.getTime())
-    ? 'Unknown date'
-    : d.toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' })
+  return formatDate(dateStr, 'Unknown date', 'Unknown date')
 }

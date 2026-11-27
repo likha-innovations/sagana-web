@@ -2,6 +2,7 @@ import { useState, useCallback } from 'react'
 import { useSearchParams } from 'react-router'
 import { CheckCircle2, Cpu, Layers } from 'lucide-react'
 import { toast } from 'sonner'
+import { createLogger } from '@/lib/logger'
 import { PageHeader } from '@/components/ui/page-header'
 import { StatsGrid } from '@/components/ui/stats-grid'
 import { FilterToolbar } from '@/components/ui/filter-toolbar'
@@ -10,10 +11,12 @@ import { type DropdownOption } from '@/components/ui/custom-dropdown'
 import { CompostBatchesTable } from './compost-batches-table'
 import { CompostBatchInfoModal } from './compost-batch-info-modal'
 import { useBatches, useBatchStats } from '@/hooks/use-batches'
-import { fetchBatches, type Batch } from '@/api/batch.api'
-import { type BatchPhase } from '@/types/batch'
+import { fetchBatches } from '@/api/batch.api'
+import { type Batch, type BatchPhase } from '@/types/batch'
 import { exportBatchesReport } from '@/lib/export-batches-report'
 import { exportBatchesToSheets } from '@/lib/export-sheets'
+
+const logger = createLogger('CompostBatchesPage')
 
 const BATCH_STATUS_OPTIONS: DropdownOption[] = [
   { value: 'all', label: 'All statuses' },
@@ -96,7 +99,8 @@ export function CompostBatchesPage() {
         dateRange: dateRangeParam,
       })
       toast.success('Compost batches report opened in new tab')
-    } catch {
+    } catch (err) {
+      logger.warn('Failed to fetch batches for PDF export, using loaded view:', err)
       exportBatchesReport({
         batches,
         search: searchParam,
@@ -121,7 +125,8 @@ export function CompostBatchesPage() {
       })
       exportBatchesToSheets(res.data.length > 0 ? res.data : batches)
       toast.success('Compost batches exported as Sheets (CSV)')
-    } catch {
+    } catch (err) {
+      logger.warn('Failed to fetch batches for CSV export, using loaded view:', err)
       exportBatchesToSheets(batches)
       toast.success('Compost batches exported as Sheets (CSV)')
     } finally {

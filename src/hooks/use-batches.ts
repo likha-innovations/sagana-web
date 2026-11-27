@@ -3,11 +3,13 @@ import {
   fetchBatches,
   fetchBatchStats,
   fetchBatchTemperature,
-  type BatchQueryParams,
-  type BatchListResponse,
-  type BatchStatsData,
-  type BatchTemperatureReading,
 } from '@/api/batch.api'
+import type {
+  BatchQueryParams,
+  BatchListResponse,
+  BatchStatsData,
+  BatchTemperatureReading,
+} from '@/types/batch'
 
 export const batchKeys = {
   all: ['batches'] as const,
