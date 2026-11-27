@@ -1,5 +1,5 @@
 import { api } from './client'
-import { isDateInRange } from '@/lib/date-range'
+import { isDateInRange, isOnOrBeforeDate } from '@/lib/date-range'
 import { createLogger } from '@/lib/logger'
 import { paginateList, toCanonicalBirthday } from '@/lib/utils'
 import {
@@ -76,7 +76,7 @@ export async function fetchArchivedOperators(): Promise<OperatorAccount[]> {
   return raw.filter((op) => op.status === 'suspended')
 }
 
-export async function fetchOperatorStats(): Promise<OperatorStatsData> {
+export async function fetchOperatorStatsAsOf(asOf?: Date): Promise<OperatorStatsData> {
   const [raw, codeRes] = await Promise.all([
     operatorApi.list(),
     barangayApi.getCode().catch((err) => {
@@ -85,15 +85,20 @@ export async function fetchOperatorStats(): Promise<OperatorStatsData> {
     }),
   ])
 
-  const active = raw.filter((op) => op.status === 'active').length
-  const inactive = raw.filter((op) => op.status !== 'active').length
+  const scoped = asOf ? raw.filter((op) => isOnOrBeforeDate(op.createdAt, asOf)) : raw
+  const active = scoped.filter((op) => op.status === 'active').length
+  const inactive = scoped.filter((op) => op.status !== 'active').length
   const barangayName = raw.find((op) => op.barangay)?.barangay?.name || 'Unknown'
 
   return {
-    total: raw.length,
+    total: scoped.length,
     active,
     inactive,
     barangayCode: codeRes?.code || '',
     barangayName,
   }
+}
+
+export function fetchOperatorStats(): Promise<OperatorStatsData> {
+  return fetchOperatorStatsAsOf()
 }

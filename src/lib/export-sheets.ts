@@ -98,7 +98,7 @@ export function exportMachinesToSheets(machines: Machine[]): void {
 
 export function exportDashboardToSheets(
   data: DashboardData,
-  barangay = 'Barangay 176-E',
+  barangay = 'Assigned Barangay',
   dateRange = 'Current Month'
 ): void {
   const { kpis, recentBatches } = data

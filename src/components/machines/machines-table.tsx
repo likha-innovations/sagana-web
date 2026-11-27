@@ -17,6 +17,15 @@ interface MachinesTableProps {
   onView?: (machine: Machine) => void
 }
 
+const MACHINE_COLUMNS = [
+  { label: 'Machine ID', widthClass: 'w-[11%]' },
+  { label: 'Machine Name', widthClass: 'w-[20%]' },
+  { label: 'Registered by', widthClass: 'w-[19%]' },
+  { label: 'Connection status', widthClass: 'w-[13%]' },
+  { label: 'Current batch', widthClass: 'w-[25%]' },
+  { label: 'Date registered', widthClass: 'w-[12%]' },
+] as const
+
 export function MachinesTable({
   machines,
   isLoading = false,
@@ -25,6 +34,18 @@ export function MachinesTable({
   onClearFilters,
   onView,
 }: MachinesTableProps) {
+  const tableHeader = (
+    <thead>
+      <tr className="border-b border-border text-xs font-semibold text-foreground">
+        {MACHINE_COLUMNS.map((col) => (
+          <th key={col.label} scope="col" className={`${col.widthClass} pb-3 font-semibold`}>
+            {col.label}
+          </th>
+        ))}
+      </tr>
+    </thead>
+  )
+
   if (isLoading) {
     return (
       <>
@@ -38,29 +59,18 @@ export function MachinesTable({
             </div>
           ))}
         </div>
-        <div className="hidden sm:block w-full overflow-x-auto [&::-webkit-scrollbar]:hidden [scrollbar-width:none]">
-          <table className="w-full min-w-[880px] table-fixed border-collapse text-left">
-            <thead>
-              <tr className="border-b border-border text-xs font-semibold text-foreground">
-                <th scope="col" className="w-[10%] pb-3 font-semibold">Machine ID</th>
-                <th scope="col" className="w-[19%] pb-3 font-semibold">Machine Name</th>
-                <th scope="col" className="w-[18%] pb-3 font-semibold">Registered by</th>
-                <th scope="col" className="w-[12%] pb-3 font-semibold">Connection status</th>
-                <th scope="col" className="w-[25%] pb-3 font-semibold">Current batch</th>
-                <th scope="col" className="w-[11%] pb-3 font-semibold">Date registered</th>
-                <th scope="col" className="w-[5%] pb-3 text-right pr-10"><span className="sr-only">Actions</span></th>
-              </tr>
-            </thead>
+        <div className="hidden sm:block w-full overflow-x-auto [&::-webkit-scrollbar]:hidden scrollbar-none">
+          <table className="w-full min-w-220 table-fixed border-collapse text-left">
+            {tableHeader}
             <tbody className="divide-y divide-border">
               {Array.from({ length: 6 }).map((_, i) => (
-                <tr key={i} className="min-h-[58px]" role="status" aria-label="Loading row">
+                <tr key={i} className="min-h-14.5" role="status" aria-label="Loading row">
                   <td className="py-3"><Skeleton className="h-4 w-16 rounded" /></td>
                   <td className="py-3"><Skeleton className="h-4 w-28 rounded" /></td>
                   <td className="py-3"><div className="flex items-center gap-3"><Skeleton className="h-9 w-9 rounded-full" /><Skeleton className="h-4 w-24 rounded" /></div></td>
                   <td className="py-3"><Skeleton className="h-6 w-16 rounded-full" /></td>
                   <td className="py-3"><Skeleton className="h-4 w-32 rounded" /></td>
                   <td className="py-3"><Skeleton className="h-4 w-20 rounded" /></td>
-                  <td className="py-3 text-right pr-10"><Skeleton className="ml-auto h-4 w-10 rounded" /></td>
                 </tr>
               ))}
             </tbody>
@@ -140,19 +150,9 @@ export function MachinesTable({
         })}
       </div>
 
-      <div className="hidden sm:block w-full overflow-x-auto [&::-webkit-scrollbar]:hidden [scrollbar-width:none]">
-        <table className="w-full min-w-[880px] table-fixed border-collapse text-left">
-          <thead>
-            <tr className="border-b border-border text-xs font-semibold text-foreground">
-              <th scope="col" className="w-[10%] pb-3 font-semibold">Machine ID</th>
-              <th scope="col" className="w-[19%] pb-3 font-semibold">Machine Name</th>
-              <th scope="col" className="w-[18%] pb-3 font-semibold">Registered by</th>
-              <th scope="col" className="w-[12%] pb-3 font-semibold">Connection status</th>
-              <th scope="col" className="w-[25%] pb-3 font-semibold">Current batch</th>
-              <th scope="col" className="w-[11%] pb-3 font-semibold">Date registered</th>
-              <th scope="col" className="w-[5%] pb-3 text-right pr-10"><span className="sr-only">Actions</span></th>
-            </tr>
-          </thead>
+      <div className="hidden sm:block w-full overflow-x-auto [&::-webkit-scrollbar]:hidden scrollbar-none">
+        <table className="w-full min-w-220 table-fixed border-collapse text-left">
+          {tableHeader}
           <tbody className="divide-y divide-border">
             {machines.map((machine) => {
               const isOnline = isMachineOnline(machine)
@@ -162,7 +162,7 @@ export function MachinesTable({
               const currentBatch = getMachineCurrentBatch(machine)
               const dateRegistered = formatDate(machine.createdAt)
               return (
-                <tr key={machine.id} onClick={() => onView?.(machine)} className="min-h-[58px] transition-colors hover:bg-[#F2F1EB]/70 cursor-pointer">
+                <tr key={machine.id} onClick={() => onView?.(machine)} className="min-h-14.5 transition-colors hover:bg-[#F2F1EB]/70 cursor-pointer">
                   <td className="py-3 pr-3"><span className="text-xs font-semibold leading-[140%] text-foreground">{code}</span></td>
                   <td className="py-3 pr-3"><span className="text-xs font-normal leading-[140%] text-foreground">{machine.name}</span></td>
                   <td className="py-3 pr-3">
@@ -179,17 +179,14 @@ export function MachinesTable({
                   <td className="py-3 pr-3">
                     {currentBatch ? (
                       <div className="flex flex-col gap-0.5">
-                        <span className="text-xs font-normal leading-[1.3] text-foreground break-words">{currentBatch.code}</span>
+                        <span className="text-xs font-normal leading-[1.3] text-foreground wrap-break-word">{currentBatch.code}</span>
                         <span className="text-xs font-normal leading-[1.3] text-text-email">{currentBatch.stage}</span>
                       </div>
                     ) : (
                       <span className="text-xs text-text-email">—</span>
                     )}
                   </td>
-                  <td className="py-3 pr-3 text-xs font-normal text-foreground">{dateRegistered}</td>
-                  <td className="py-3 text-right pr-10" onClick={(e) => e.stopPropagation()}>
-                    <button type="button" onClick={() => onView?.(machine)} className="inline-block text-xs font-bold leading-none text-primary hover:underline cursor-pointer">View</button>
-                  </td>
+                  <td className="py-3 text-xs font-normal text-foreground">{dateRegistered}</td>
                 </tr>
               )
             })}

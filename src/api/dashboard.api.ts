@@ -17,28 +17,34 @@ import {
   formatBatchDate,
 } from '@/types/batch'
 import { batchApi } from './batch.api'
-import { fetchMachineStats } from './machine.api'
+import { fetchMachineStatsAsOf } from './machine.api'
 import type { MachineStatsData } from '@/types/machine'
 import { createLogger } from '@/lib/logger'
+import { isDateInRange, resolveDateRange } from '@/lib/date-range'
 
 const logger = createLogger('Dashboard')
-import { fetchOperatorStats } from './operator.api'
+import { fetchOperatorStatsAsOf } from './operator.api'
 import type { OperatorStatsData } from '@/types/operator'
 
 export function computeDashboardData(
   machineStats: MachineStatsData,
   operatorStats: OperatorStatsData,
-  batches: CompostBatch[]
+  batches: CompostBatch[],
+  dateRange = 'all'
 ): DashboardData {
-  const completedBatches = batches.filter(
+  const scopedBatches =
+    dateRange && dateRange !== 'all'
+      ? batches.filter((b) => isDateInRange(b.startDate, dateRange))
+      : batches
+
+  const completedBatches = scopedBatches.filter(
     (b) => b.completionDate != null || b.status?.toLowerCase() === 'completed'
   )
-  const activeBatches = batches.filter(
+  const activeBatches = scopedBatches.filter(
     (b) => !b.completionDate && b.status?.toLowerCase() !== 'completed'
   )
 
-
-  const totalWaste = batches.reduce((sum, b) => sum + (b.totalWeight ?? 0), 0)
+  const totalWaste = scopedBatches.reduce((sum, b) => sum + (b.totalWeight ?? 0), 0)
   const compostProducedNum = completedBatches.reduce(
     (sum, b) => sum + (b.finalWeight ?? b.totalWeight ?? 0),
     0
@@ -59,7 +65,7 @@ export function computeDashboardData(
       value:
         totalWaste % 1 === 0 ? totalWaste.toFixed(0) : totalWaste.toFixed(1),
       unit: 'kg',
-      delta: `${batches.length} batches`,
+      delta: `${scopedBatches.length} batches`,
       deltaTone: 'good',
       icon: Recycle,
     },
@@ -146,17 +152,24 @@ export function computeDashboardData(
     phaseData,
     userStatusData,
     recentBatches,
-    totalThisMonth: recentBatches.length,
+    totalThisMonth: completedBatches.length,
+    barangayName:
+      operatorStats.barangayName && operatorStats.barangayName !== 'Unknown'
+        ? operatorStats.barangayName
+        : undefined,
   }
 }
 
-export async function fetchDashboardData(): Promise<DashboardData> {
+export async function fetchDashboardData(dateRange = 'this-month'): Promise<DashboardData> {
+  const resolved = resolveDateRange(dateRange)
+  const asOf = resolved?.end
+
   const [machineStats, operatorStats, batches] = await Promise.all([
-    fetchMachineStats().catch((err) => {
+    fetchMachineStatsAsOf(asOf).catch((err) => {
       logger.warn('Failed to fetch machine stats:', err)
       return { registered: 0, online: 0, offline: 0 }
     }),
-    fetchOperatorStats().catch((err) => {
+    fetchOperatorStatsAsOf(asOf).catch((err) => {
       logger.warn('Failed to fetch operator stats:', err)
       return {
         total: 0,
@@ -172,5 +185,5 @@ export async function fetchDashboardData(): Promise<DashboardData> {
     }),
   ])
 
-  return computeDashboardData(machineStats, operatorStats, batches)
+  return computeDashboardData(machineStats, operatorStats, batches, dateRange)
 }

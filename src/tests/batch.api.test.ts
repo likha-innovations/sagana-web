@@ -27,6 +27,7 @@ describe('batch.api', () => {
     machineName: 'AIVSP-001',
     compostingPhases: [{ phaseName: 'thermophilic', status: 'active', timestamp: '2026-10-02' }],
     feedstocks: [{ id: 'f-1', name: 'Leaves', category: 'brown', weightKg: 300 }],
+    temperatureLogs: [],
   }
 
   beforeEach(() => {

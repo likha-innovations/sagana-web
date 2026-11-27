@@ -15,8 +15,10 @@ interface CustomDropdownProps {
   onChange: (value: string) => void
   options: DropdownOption[]
   placeholder?: string
+  leftIcon?: ReactNode
   rightIcon?: ReactNode
   className?: string
+  triggerClassName?: string
   ariaLabel?: string
   enableCustomDateRange?: boolean
   align?: 'left' | 'right'
@@ -63,8 +65,10 @@ export function CustomDropdown({
   onChange,
   options,
   placeholder = 'Select an option',
+  leftIcon,
   rightIcon,
   className = 'w-full sm:w-40',
+  triggerClassName,
   ariaLabel,
   enableCustomDateRange = false,
   align,
@@ -177,13 +181,17 @@ export function CustomDropdown({
         aria-expanded={isOpen}
         aria-label={ariaLabel || displayLabel}
         onClick={handleToggle}
-        className={`h-11 sm:h-13 w-full flex items-center justify-between gap-2 rounded-[14px] border bg-white px-3 sm:px-4 text-xs font-normal text-foreground outline-none transition-all cursor-pointer select-none ${isOpen
-          ? 'border-primary ring-1 ring-primary/25 bg-[#FAF9F0]'
-          : 'border-border hover:bg-[#FAF9F5] hover:border-[#CAC9C2]'
-          }`}
+        className={`w-full flex items-center justify-between gap-2 rounded-[14px] border text-xs text-foreground outline-none transition-all cursor-pointer select-none ${
+          triggerClassName ?? 'h-11 sm:h-13 px-3 sm:px-4 font-normal'
+        } ${
+          isOpen
+            ? 'border-primary ring-1 ring-primary/25 bg-[#FAF9F0]'
+            : `${triggerClassName ? '' : 'bg-white '}border-border hover:bg-[#FAF9F5] hover:border-[#CAC9C2]`
+        }`}
       >
-        <span className="truncate text-left">
-          {displayLabel}
+        <span className="flex items-center gap-2 truncate text-left">
+          {leftIcon}
+          <span className="truncate">{displayLabel}</span>
         </span>
 
         <span className="shrink-0 text-text-email">

@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { initialDashboardData, type DashboardData } from '@/types/dashboard'
+import { emptyDashboardData, type DashboardData } from '@/types/dashboard'
 import { fetchDashboardData } from '@/api/dashboard.api'
 import { useSocketContext } from '@/context/socket-context'
 
@@ -13,18 +13,19 @@ export interface UseDashboardDataResult extends DashboardData {
 export const dashboardKeys = {
   all: ['dashboard'] as const,
   data: ['dashboard', 'data'] as const,
+  byDateRange: (dateRange: string) => ['dashboard', 'data', dateRange] as const,
 }
 
-export function useDashboardData(): UseDashboardDataResult {
+export function useDashboardData(dateRange = 'this-month'): UseDashboardDataResult {
   const { isConnected } = useSocketContext()
 
   const query = useQuery<DashboardData>({
-    queryKey: dashboardKeys.data,
-    queryFn: fetchDashboardData,
+    queryKey: dashboardKeys.byDateRange(dateRange),
+    queryFn: () => fetchDashboardData(dateRange),
     staleTime: 1000 * 30,
   })
 
-  const data = query.data ?? initialDashboardData
+  const data = query.data ?? emptyDashboardData
 
   return {
     ...data,

@@ -1,5 +1,5 @@
 import { api } from './client'
-import { isDateInRange } from '@/lib/date-range'
+import { isDateInRange, isOnOrBeforeDate } from '@/lib/date-range'
 import { createLogger } from '@/lib/logger'
 import { paginateList } from '@/lib/utils'
 import {
@@ -50,13 +50,20 @@ export async function fetchMachines(
   return paginateList(filtered, page, pageSize)
 }
 
-export async function fetchMachineStats(): Promise<MachineStatsData> {
+export async function fetchMachineStatsAsOf(asOf?: Date): Promise<MachineStatsData> {
   const allMachines = await machineApi.list()
-  const online = allMachines.filter((m) => isMachineOnline(m)).length
+  const scoped = asOf
+    ? allMachines.filter((m) => isOnOrBeforeDate(m.createdAt, asOf))
+    : allMachines
+  const online = scoped.filter((m) => isMachineOnline(m)).length
 
   return {
-    registered: allMachines.length,
+    registered: scoped.length,
     online,
-    offline: allMachines.length - online,
+    offline: scoped.length - online,
   }
+}
+
+export function fetchMachineStats(): Promise<MachineStatsData> {
+  return fetchMachineStatsAsOf()
 }

@@ -1,7 +1,7 @@
 import { jsPDF } from 'jspdf'
 import autoTable from 'jspdf-autotable'
 import saganaLogoDataUrl from '@/assets/sagana-logo.png?inline'
-import { formatDisplayRange } from './date-range'
+import { formatDateRangeLabel } from './date-range'
 
 export const PDF_MARGIN = 16
 const LOGO_ASPECT_RATIO = 661 / 153
@@ -198,21 +198,7 @@ export function formatPdfFilterLabel(value: string, allLabel = 'All Statuses'): 
 
 // Formats date range filter keys and custom range tokens for clean PDF header display.
 export function formatPdfDateRange(value?: string): string {
-  if (!value || value === 'all') return 'All Time'
-  if (value === '7d') return 'Last 7 Days'
-  if (value === '30d') return 'Last 30 Days'
-  if (value === 'this-year') return 'This Year'
-  if (value.startsWith('custom:')) {
-    const [startStr, endStr] = value.slice(7).split('_')
-    if (startStr && endStr) {
-      const start = new Date(`${startStr}T00:00:00`)
-      const end = new Date(`${endStr}T00:00:00`)
-      if (!isNaN(start.getTime()) && !isNaN(end.getTime())) {
-        return formatDisplayRange(start, end)
-      }
-    }
-  }
-  return value
+  return formatDateRangeLabel(value)
 }
 
 // Renders a branded single-table SAGANA PDF report and opens it in a new browser tab.
