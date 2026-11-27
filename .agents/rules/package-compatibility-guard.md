@@ -1,4 +1,9 @@
-﻿# Package Compatibility & React 19 Guard (package-compatibility-guard)
+---
+trigger: always_on
+description: Dependency compatibility guard for React 19, Vite 8, and Tailwind v4 in sagana-web
+---
+
+# Package Compatibility & React 19 Guard (package-compatibility-guard)
 
 ## Core Mission
 Prevent dependency conflicts and runtime errors by verifying packages against React 19, Vite 8, and Tailwind v4 before adding to package.json.
