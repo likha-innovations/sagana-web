@@ -52,7 +52,7 @@ export function SignInPage() {
     setHasError(false)
 
     try {
-      await signIn(email.trim(), password)
+      await signIn(email.trim(), password, keepSignedIn)
       toast.success('Signed in successfully.')
       navigate('/admin')
     } catch (err: unknown) {

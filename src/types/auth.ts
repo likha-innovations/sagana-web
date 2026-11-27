@@ -37,3 +37,34 @@ export const updateProfileSchema = z.object({
 })
 
 export type UpdateProfileInput = z.infer<typeof updateProfileSchema>
+
+export const resetPasswordRequestSchema = z.object({
+  email: z
+    .string()
+    .trim()
+    .min(1, 'Please enter your email address')
+    .email('Please enter a valid email address'),
+})
+
+export type ResetPasswordRequestInput = z.infer<typeof resetPasswordRequestSchema>
+
+export const verifyCodeSchema = z.object({
+  code: z
+    .string()
+    .trim()
+    .regex(/^\d{6}$/, 'Verification code must be exactly 6 digits'),
+})
+
+export type VerifyCodeInput = z.infer<typeof verifyCodeSchema>
+
+export const resetPasswordConfirmSchema = z.object({
+  code: z
+    .string()
+    .trim()
+    .regex(/^\d{6}$/, 'Reset code must be exactly 6 digits'),
+  password: z
+    .string()
+    .min(12, 'Password must contain at least 12 characters'),
+})
+
+export type ResetPasswordConfirmInput = z.infer<typeof resetPasswordConfirmSchema>

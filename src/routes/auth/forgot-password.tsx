@@ -1,6 +1,12 @@
-import { useState, useRef, useEffect, type FormEvent, type ChangeEvent, type KeyboardEvent as ReactKeyboardEvent } from 'react'
+import {
+  useState,
+  useRef,
+  useEffect,
+  type FormEvent,
+  type ChangeEvent,
+  type KeyboardEvent as ReactKeyboardEvent,
+} from 'react'
 import { useNavigate, useSearchParams } from 'react-router'
-import { toast } from 'sonner'
 import {
   ChevronLeft,
   Eye,
@@ -11,13 +17,21 @@ import {
   ShieldCheck,
 } from 'lucide-react'
 import saganaLogo from '@/assets/sagana-logo.png'
+import { useAuthContext } from '@/context/auth-context'
+import { PasswordChecklist } from '@/components/auth/password-checklist'
+import { resetPasswordRequestSchema, verifyCodeSchema } from '@/types/auth'
+import {
+  applyOtpChange,
+  extractClerkErrorMessage,
+  isPasswordValid,
+} from '@/lib/password-reset'
 
 function SaganaLogo({ className = '' }: { className?: string }) {
   return (
     <img
       src={saganaLogo}
       alt="SAGANA"
-      className={`w-60 h-auto brightness-0 invert ${className}`}
+      className={`w-36 sm:w-60 h-auto brightness-0 invert ${className}`}
     />
   )
 }
@@ -25,19 +39,28 @@ function SaganaLogo({ className = '' }: { className?: string }) {
 type ForgotStep = 'email' | 'otp' | 'new_password' | 'success'
 
 const ERROR_RED = '#D92D20'
-const CLERK_PENDING_MESSAGE = 'Password reset will be available once Clerk reset flow is wired.'
+const EMPTY_OTP = ['', '', '', '', '', '']
 
 export function ForgotPasswordPage() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
+  const {
+    requestPasswordReset,
+    verifyPasswordResetCode,
+    resetPassword,
+    isLoaded,
+    isPreparingReset,
+  } = useAuthContext()
 
   const initialEmail = searchParams.get('email') || ''
-  const [step, setStep] = useState<ForgotStep>('email')
+  const initialStep: ForgotStep =
+    searchParams.get('step') === 'otp' && initialEmail ? 'otp' : 'email'
+  const [step, setStep] = useState<ForgotStep>(initialStep)
 
   const [email, setEmail] = useState(initialEmail)
   const [emailError, setEmailError] = useState<string | null>(null)
 
-  const [otp, setOtp] = useState<string[]>(['', '', '', '', '', ''])
+  const [otp, setOtp] = useState<string[]>(EMPTY_OTP)
   const [otpError, setOtpError] = useState<string | null>(null)
   const otpInputRefs = useRef<(HTMLInputElement | null)[]>([])
 
@@ -45,12 +68,14 @@ export function ForgotPasswordPage() {
   const [confirmPassword, setConfirmPassword] = useState('')
   const [showNewPassword, setShowNewPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
+  const [newPasswordError, setNewPasswordError] = useState(false)
+  const [confirmPasswordError, setConfirmPasswordError] = useState(false)
   const [passwordError, setPasswordError] = useState<string | null>(null)
 
-  const isSendingOtp = false
-  const isVerifyingOtp = false
-  const isResetting = false
-  const resendCooldown = 0
+  const [isSendingOtp, setIsSendingOtp] = useState(false)
+  const [isVerifyingOtp, setIsVerifyingOtp] = useState(false)
+  const [isResetting, setIsResetting] = useState(false)
+  const [resendCooldown, setResendCooldown] = useState(initialStep === 'otp' ? 60 : 0)
 
   useEffect(() => {
     if (step === 'otp') {
@@ -61,104 +86,162 @@ export function ForgotPasswordPage() {
     }
   }, [step])
 
-  const handleEmailSubmit = (e: FormEvent<HTMLFormElement>) => {
+  useEffect(() => {
+    if (resendCooldown <= 0) return
+    const timer = setTimeout(() => setResendCooldown((prev) => prev - 1), 1000)
+    return () => clearTimeout(timer)
+  }, [resendCooldown])
+
+  const handleEmailSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault()
 
-    const trimmed = email.trim()
-    if (!trimmed) {
-      setEmailError('Please enter your email address')
+    const parsed = resetPasswordRequestSchema.safeParse({ email })
+    if (!parsed.success) {
+      setEmailError(parsed.error.issues[0]?.message || 'Please enter a valid email address')
       return
     }
 
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) {
-      setEmailError('Please enter a valid email address')
-      return
-    }
-
+    setIsSendingOtp(true)
     setEmailError(null)
-    toast.info(CLERK_PENDING_MESSAGE)
+
+    try {
+      await requestPasswordReset(parsed.data.email)
+      setOtp(EMPTY_OTP)
+      setOtpError(null)
+      setResendCooldown(60)
+      setStep('otp')
+    } catch (err: unknown) {
+      setEmailError(
+        extractClerkErrorMessage(err, 'Unable to find account with this email address')
+      )
+    } finally {
+      setIsSendingOtp(false)
+    }
   }
 
-  const handleResendOtp = () => {
+  const handleResendOtp = async () => {
+    if (resendCooldown > 0 || isSendingOtp || isPreparingReset || !email.trim()) return
+
+    setIsSendingOtp(true)
     setOtpError(null)
-    toast.info(CLERK_PENDING_MESSAGE)
+
+    try {
+      await requestPasswordReset(email.trim())
+      setOtp(EMPTY_OTP)
+      setResendCooldown(60)
+      otpInputRefs.current[0]?.focus()
+    } catch (err: unknown) {
+      setOtpError(extractClerkErrorMessage(err, 'Unable to resend OTP. Please try again.'))
+    } finally {
+      setIsSendingOtp(false)
+    }
+  }
+
+  const verifyOtpCode = async (code: string) => {
+    if (isVerifyingOtp || isPreparingReset) return
+
+    const parsed = verifyCodeSchema.safeParse({ code })
+    if (!parsed.success) {
+      setOtpError('Please enter the 6-digit code')
+      return
+    }
+
+    setIsVerifyingOtp(true)
+    setOtpError(null)
+
+    try {
+      await verifyPasswordResetCode(parsed.data.code)
+      setStep('new_password')
+    } catch (err: unknown) {
+      setOtpError(extractClerkErrorMessage(err, 'Incorrect one-time code'))
+    } finally {
+      setIsVerifyingOtp(false)
+    }
   }
 
   const handleOtpChange = (index: number, e: ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value
     if (otpError) setOtpError(null)
 
-    if (value.length > 1) {
-      const digits = value.replace(/\D/g, '').slice(0, 6).split('')
-      if (digits.length > 0) {
-        const nextOtp = [...otp]
-        digits.forEach((digit, i) => {
-          if (index + i < 6) nextOtp[index + i] = digit
-        })
-        setOtp(nextOtp)
-        const nextIndex = Math.min(index + digits.length, 5)
-        otpInputRefs.current[nextIndex]?.focus()
-      }
-      return
-    }
-
-    const digit = value.replace(/\D/g, '')
-    const nextOtp = [...otp]
-    nextOtp[index] = digit
+    const { nextOtp, focusIndex } = applyOtpChange(otp, index, e.target.value)
     setOtp(nextOtp)
 
-    if (digit && index < 5) {
-      otpInputRefs.current[index + 1]?.focus()
+    if (focusIndex !== null) {
+      otpInputRefs.current[focusIndex]?.focus()
+    }
+
+    // ponytail: trigger auto-verify on input completion rather than an effect to avoid bounce-back on Back
+    if (nextOtp.every(Boolean)) {
+      void verifyOtpCode(nextOtp.join(''))
     }
   }
 
   const handleOtpKeyDown = (index: number, e: ReactKeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Backspace' && !otp[index] && index > 0) {
+      const nextOtp = [...otp]
+      nextOtp[index - 1] = ''
+      setOtp(nextOtp)
       otpInputRefs.current[index - 1]?.focus()
     }
   }
 
   const handleOtpSubmit = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault()
-
-    const code = otp.join('').trim()
-    if (code.length < 6) {
-      setOtpError('Please enter the 6-digit code')
-      return
-    }
-
-    setOtpError(null)
-    toast.info(CLERK_PENDING_MESSAGE)
+    void verifyOtpCode(otp.join('').trim())
   }
 
-  const handlePasswordSubmit = (e: FormEvent<HTMLFormElement>) => {
+  const handlePasswordSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault()
 
     if (!newPassword || !confirmPassword) {
+      setNewPasswordError(!newPassword)
+      setConfirmPasswordError(!confirmPassword)
       setPasswordError('Please enter and confirm your new password')
       return
     }
 
-    if (newPassword.length < 8) {
-      setPasswordError('Password must contain at least 8 characters')
+    if (!isPasswordValid(newPassword)) {
+      setNewPasswordError(true)
+      setConfirmPasswordError(false)
+      setPasswordError("Password doesn't meet requirements")
       return
     }
 
     if (newPassword !== confirmPassword) {
-      setPasswordError('Passwords do not match')
+      setNewPasswordError(false)
+      setConfirmPasswordError(true)
+      setPasswordError("Passwords don't match")
       return
     }
 
+    setIsResetting(true)
+    setNewPasswordError(false)
+    setConfirmPasswordError(false)
     setPasswordError(null)
-    toast.info(CLERK_PENDING_MESSAGE)
+
+    try {
+      await resetPassword(newPassword, otp.join('').trim())
+      setStep('success')
+    } catch (err: unknown) {
+      setNewPasswordError(true)
+      setConfirmPasswordError(true)
+      setPasswordError(
+        extractClerkErrorMessage(err, 'Failed to reset password. The OTP may have expired.')
+      )
+    } finally {
+      setIsResetting(false)
+    }
   }
 
   const handleBack = () => {
     if (step === 'email') {
       navigate('/sign-in')
     } else if (step === 'otp') {
+      setOtpError(null)
       setStep('email')
     } else if (step === 'new_password') {
+      setNewPasswordError(false)
+      setConfirmPasswordError(false)
+      setPasswordError(null)
       setStep('otp')
     } else {
       navigate('/sign-in')
@@ -203,7 +286,7 @@ export function ForgotPasswordPage() {
                 Enter the email address associated with your account to receive a one-time code.
               </p>
 
-              <form onSubmit={handleEmailSubmit} className="mt-8 space-y-6" noValidate>
+              <form onSubmit={(e) => void handleEmailSubmit(e)} className="mt-8 space-y-6" noValidate>
                 <div className="space-y-1.5">
                   <label htmlFor="forgot-email" className="sr-only">
                     Email address
@@ -222,7 +305,7 @@ export function ForgotPasswordPage() {
                       disabled={isSendingOtp}
                       aria-invalid={!!emailError}
                       style={emailError ? { borderColor: ERROR_RED } : undefined}
-                      className={`w-full h-13 bg-[#FDFCF7] rounded-2xl px-4.5 text-sm outline-none transition-all disabled:opacity-50 disabled:cursor-not-allowed ${
+                      className={`w-full h-13 bg-[#FDFCF7] rounded-2xl px-4.5 pr-11 text-sm outline-none transition-all disabled:opacity-50 disabled:cursor-not-allowed ${
                         emailError
                           ? 'border-2 border-red-500 placeholder:text-red-400 text-red-600 focus:border-red-500'
                           : 'border border-border placeholder:text-text-secondary text-foreground focus:border-primary focus:ring-1 focus:ring-primary/20'
@@ -249,7 +332,7 @@ export function ForgotPasswordPage() {
                 <button
                   id="forgot-email-submit"
                   type="submit"
-                  disabled={isSendingOtp}
+                  disabled={isSendingOtp || !isLoaded}
                   className="w-full h-12 bg-primary hover:bg-[#627920] active:bg-[#566d1b] text-white font-semibold rounded-full transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer text-sm"
                 >
                   {isSendingOtp ? (
@@ -271,7 +354,14 @@ export function ForgotPasswordPage() {
                 Enter one-time code
               </h1>
               <p className="text-text-email text-sm mt-2 leading-relaxed">
-                To reset your password kindly check your email for an OTP and enter it here.
+                {email.trim() ? (
+                  <>
+                    Enter the 6-digit one-time code sent to{' '}
+                    <span className="font-semibold text-foreground break-all">{email.trim()}</span>.
+                  </>
+                ) : (
+                  'To reset your password kindly check your email for an OTP and enter it here.'
+                )}
               </p>
 
               <form onSubmit={handleOtpSubmit} className="mt-8 space-y-6" noValidate>
@@ -286,17 +376,19 @@ export function ForgotPasswordPage() {
                         id={`otp-input-${idx}`}
                         type="text"
                         inputMode="numeric"
+                        autoComplete={idx === 0 ? 'one-time-code' : 'off'}
                         maxLength={6}
                         value={digit}
                         onChange={(e) => handleOtpChange(idx, e)}
                         onKeyDown={(e) => handleOtpKeyDown(idx, e)}
-                        disabled={isVerifyingOtp}
+                        disabled={isVerifyingOtp || isPreparingReset}
+                        aria-label={`One-time code digit ${idx + 1} of 6`}
                         style={otpError ? { borderColor: ERROR_RED } : undefined}
                         className={`h-13 w-11 sm:w-12 text-center text-xl font-bold rounded-2xl outline-none transition-all disabled:opacity-50 ${
                           otpError
                             ? 'border-2 border-red-500 bg-red-50/20 text-red-600 focus:border-red-500'
                             : digit
-                            ? 'border-2 border-primary bg-white text-foreground'
+                            ? 'border-[1.5px] border-foreground/50 bg-white text-foreground'
                             : 'border border-border bg-[#FDFCF7] text-foreground focus:border-primary focus:ring-1 focus:ring-primary/20'
                         }`}
                       />
@@ -324,11 +416,11 @@ export function ForgotPasswordPage() {
                   ) : (
                     <button
                       type="button"
-                      onClick={handleResendOtp}
-                      disabled={isSendingOtp}
+                      onClick={() => void handleResendOtp()}
+                      disabled={isSendingOtp || isPreparingReset}
                       className="font-bold text-brand-700 hover:underline cursor-pointer disabled:opacity-50"
                     >
-                      {isSendingOtp ? 'Resending...' : 'Resend'}
+                      {isSendingOtp || isPreparingReset ? 'Resending...' : 'Resend'}
                     </button>
                   )}
                 </div>
@@ -336,7 +428,7 @@ export function ForgotPasswordPage() {
                 <button
                   id="forgot-otp-submit"
                   type="submit"
-                  disabled={isVerifyingOtp || otp.some((d) => !d)}
+                  disabled={isVerifyingOtp || isPreparingReset || otp.some((d) => !d)}
                   className="w-full h-12 bg-primary hover:bg-[#627920] active:bg-[#566d1b] text-white font-semibold rounded-full transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer text-sm"
                 >
                   {isVerifyingOtp ? (
@@ -358,10 +450,10 @@ export function ForgotPasswordPage() {
                 Reset password
               </h1>
               <p className="text-text-email text-sm mt-2 leading-relaxed">
-                Your new password must be different from previous passwords and contain at least 8 characters.
+                Your new password must contain at least 12 characters, a number, and a special symbol.
               </p>
 
-              <form onSubmit={handlePasswordSubmit} className="mt-8 space-y-4" noValidate>
+              <form onSubmit={(e) => void handlePasswordSubmit(e)} className="mt-8 space-y-4" noValidate>
                 <div className="space-y-1.5">
                   <label htmlFor="new-password" className="sr-only">
                     New password
@@ -373,21 +465,16 @@ export function ForgotPasswordPage() {
                       value={newPassword}
                       onChange={(e) => {
                         setNewPassword(e.target.value)
+                        if (newPasswordError) setNewPasswordError(false)
                         if (passwordError) setPasswordError(null)
                       }}
                       placeholder="New password"
                       autoComplete="new-password"
                       disabled={isResetting}
-                      aria-invalid={!!passwordError}
-                      style={
-                        passwordError &&
-                        (passwordError.includes('8') || passwordError.includes('require') || passwordError.includes('enter'))
-                          ? { borderColor: ERROR_RED }
-                          : undefined
-                      }
+                      aria-invalid={newPasswordError}
+                      style={newPasswordError ? { borderColor: ERROR_RED } : undefined}
                       className={`w-full h-13 bg-[#FDFCF7] rounded-2xl px-4.5 pr-12 text-sm outline-none transition-all disabled:opacity-50 ${
-                        passwordError &&
-                        (passwordError.includes('8') || passwordError.includes('require') || passwordError.includes('enter'))
+                        newPasswordError
                           ? 'border-2 border-red-500 placeholder:text-red-400 text-red-600 focus:border-red-500'
                           : 'border border-border placeholder:text-text-secondary text-foreground focus:border-primary focus:ring-1 focus:ring-primary/20'
                       }`}
@@ -409,7 +496,7 @@ export function ForgotPasswordPage() {
 
                 <div className="space-y-1.5">
                   <label htmlFor="confirm-password" className="sr-only">
-                    Confirm password
+                    Confirm new password
                   </label>
                   <div className="relative">
                     <input
@@ -418,19 +505,16 @@ export function ForgotPasswordPage() {
                       value={confirmPassword}
                       onChange={(e) => {
                         setConfirmPassword(e.target.value)
+                        if (confirmPasswordError) setConfirmPasswordError(false)
                         if (passwordError) setPasswordError(null)
                       }}
-                      placeholder="Confirm password"
+                      placeholder="Confirm new password"
                       autoComplete="new-password"
                       disabled={isResetting}
-                      aria-invalid={!!passwordError}
-                      style={
-                        passwordError && passwordError.includes('match')
-                          ? { borderColor: ERROR_RED }
-                          : undefined
-                      }
+                      aria-invalid={confirmPasswordError}
+                      style={confirmPasswordError ? { borderColor: ERROR_RED } : undefined}
                       className={`w-full h-13 bg-[#FDFCF7] rounded-2xl px-4.5 pr-12 text-sm outline-none transition-all disabled:opacity-50 ${
-                        passwordError && passwordError.includes('match')
+                        confirmPasswordError
                           ? 'border-2 border-red-500 placeholder:text-red-400 text-red-600 focus:border-red-500'
                           : 'border border-border placeholder:text-text-secondary text-foreground focus:border-primary focus:ring-1 focus:ring-primary/20'
                       }`}
@@ -459,6 +543,8 @@ export function ForgotPasswordPage() {
                     <span>{passwordError}</span>
                   </div>
                 )}
+
+                <PasswordChecklist password={newPassword} hasError={newPasswordError} />
 
                 <button
                   id="forgot-password-submit"
