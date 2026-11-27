@@ -7,6 +7,7 @@ import {
   PASSWORD_RULES,
   applyOtpChange,
   extractClerkErrorMessage,
+  isClerkSessionExistsError,
   isPasswordValid,
 } from '@/lib/password-reset'
 
@@ -86,6 +87,19 @@ describe('Password Reset Validation & Helpers', () => {
       ).toBe('Short Clerk error')
       expect(extractClerkErrorMessage(new Error('Standard error'), 'Fallback')).toBe('Standard error')
       expect(extractClerkErrorMessage(null, 'Fallback')).toBe('Fallback')
+    })
+  })
+
+  describe('isClerkSessionExistsError', () => {
+    it('detects Clerk session_exists and already-signed-in errors', () => {
+      expect(isClerkSessionExistsError({ errors: [{ code: 'session_exists' }] })).toBe(true)
+      expect(
+        isClerkSessionExistsError({ errors: [{ code: 'identifier_already_signed_in' }] })
+      ).toBe(true)
+      expect(isClerkSessionExistsError(new Error("You're already signed in."))).toBe(true)
+      expect(isClerkSessionExistsError({ errors: [{ code: 'form_password_incorrect' }] })).toBe(
+        false
+      )
     })
   })
 })

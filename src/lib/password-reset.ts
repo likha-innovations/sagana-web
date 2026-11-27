@@ -70,3 +70,14 @@ export function extractClerkErrorMessage(err: unknown, fallback: string): string
     fallback
   )
 }
+
+export function isClerkSessionExistsError(err: unknown): boolean {
+  const clerkErr = err as {
+    errors?: Array<{ code?: string }>
+  } | null
+  const hasSessionCode = clerkErr?.errors?.some(
+    (e) => e.code === 'session_exists' || e.code === 'identifier_already_signed_in'
+  )
+  if (hasSessionCode) return true
+  return /already signed in|session_exists/i.test(extractClerkErrorMessage(err, ''))
+}

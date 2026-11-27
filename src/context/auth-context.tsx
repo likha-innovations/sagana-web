@@ -17,7 +17,7 @@ import {
   requireKeepSignedInPersistence,
   shouldExpireSessionOnBoot,
 } from '@/lib/session-persistence'
-import { extractClerkErrorMessage } from '@/lib/password-reset'
+import { extractClerkErrorMessage, isClerkSessionExistsError } from '@/lib/password-reset'
 
 const logger = createLogger('AuthContext')
 
@@ -151,6 +151,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const role: UserRole = user?.role || 'operator'
 
+  const withCleanClerkSession = useCallback(
+    async <T,>(fn: () => Promise<T>): Promise<T> => {
+      try {
+        return await fn()
+      } catch (err: unknown) {
+        if (!isClerkSessionExistsError(err)) throw err
+        logger.warn('Clearing stale Clerk session before retrying auth action')
+        await clerkSignOut(() => {})
+        clearSessionPersistence()
+        return fn()
+      }
+    },
+    [clerkSignOut]
+  )
+
   const signIn = useCallback(
     async (email: string, password: string, keepSignedIn = false) => {
       logger.info(`Initiating sign in for ${email}`)
@@ -163,10 +178,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         const validated = signInSchema.parse({ email, password })
 
-        let attempt = await clerkSignIn.create({
-          identifier: validated.email,
-          password: validated.password,
-        })
+        let attempt = await withCleanClerkSession(() =>
+          clerkSignIn.create({
+            identifier: validated.email,
+            password: validated.password,
+          })
+        )
 
         if (attempt.status === 'needs_first_factor') {
           attempt = await clerkSignIn.attemptFirstFactor({
@@ -225,7 +242,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setIsActionLoading(false)
       }
     },
-    [clerkSignIn, setSignInActive, clerk, getToken, clerkSignOut]
+    [clerkSignIn, setSignInActive, clerk, getToken, clerkSignOut, withCleanClerkSession]
   )
 
   const requestPasswordReset = useCallback(
@@ -236,13 +253,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       const validated = resetPasswordRequestSchema.parse({ email })
-      await signInResource.create({
-        strategy: 'reset_password_email_code',
-        identifier: validated.email,
-      })
+      await withCleanClerkSession(() =>
+        signInResource.create({
+          strategy: 'reset_password_email_code',
+          identifier: validated.email,
+        })
+      )
       logger.info(`Password reset email sent to ${validated.email}`)
     },
-    [clerk, clerkSignIn]
+    [clerk, clerkSignIn, withCleanClerkSession]
   )
 
   const verifyPasswordResetCode = useCallback(
@@ -301,10 +320,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         throw new Error('Password reset incomplete. Please try again.')
       }
 
-      // ponytail: keep session inactive so web renders 'You are all set!' and verifies admin role on /sign-in
+      // ponytail: clear Clerk's auto-created session so web renders 'You are all set!' and verifies admin role on /sign-in
+      if (result.createdSessionId) {
+        try {
+          await clerkSignOut(() => {}, { sessionId: result.createdSessionId })
+        } catch (signOutErr) {
+          logger.warn('Failed to clear password-reset session by ID, signing out client', signOutErr)
+          await clerkSignOut(() => {})
+        }
+      } else {
+        await clerkSignOut(() => {})
+      }
+      clearSessionPersistence()
+      setDbUser(null)
+      setIsProfileFetched(false)
+
       logger.info('Password reset complete')
     },
-    [clerk, clerkSignIn]
+    [clerk, clerkSignIn, clerkSignOut]
   )
 
   const verifyCurrentPassword = useCallback(
