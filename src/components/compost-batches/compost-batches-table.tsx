@@ -120,10 +120,11 @@ export function CompostBatchesTable({
           const startedOn = formatBatchDate(batch.startDate)
 
           return (
-            <div
+            <button
+              type="button"
               key={batch.id}
               onClick={() => onView?.(batch)}
-              className="rounded-2xl border border-border bg-white p-4 active:bg-[#F2F1EB] transition-colors cursor-pointer"
+              className="w-full text-left rounded-2xl border border-border bg-white p-4 active:bg-[#F2F1EB] transition-colors cursor-pointer"
             >
               <div className="flex items-center justify-between mb-3">
                 <p className="text-sm font-semibold text-foreground truncate mr-3">{batch.batchCode}</p>
@@ -149,7 +150,7 @@ export function CompostBatchesTable({
                   <span className="text-foreground">{days}</span>
                 </div>
               </div>
-            </div>
+            </button>
           )
         })}
       </div>

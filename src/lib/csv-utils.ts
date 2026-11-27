@@ -1,18 +1,22 @@
 
 
-export function downloadCsv(filename: string, headers: string[], rows: (string | number)[][]): void {
-  const escapeCell = (val: string | number | null | undefined): string => {
-    if (val === null || val === undefined) return ''
-    const str = String(val)
-    if (str.includes(',') || str.includes('"') || str.includes('\n') || str.includes('\r')) {
-      return `"${str.replace(/"/g, '""')}"`
-    }
-    return str
+export function escapeCsvCell(val: string | number | null | undefined): string {
+  if (val === null || val === undefined) return ''
+  let str = String(val)
+  // Neutralize formula-triggering prefixes on string values while keeping numbers numeric
+  if (typeof val === 'string' && /^[=+\-@\t\r]/.test(str)) {
+    str = `'${str}`
   }
+  if (str.includes(',') || str.includes('"') || str.includes('\n') || str.includes('\r')) {
+    return `"${str.replace(/"/g, '""')}"`
+  }
+  return str
+}
 
+export function downloadCsv(filename: string, headers: string[], rows: (string | number)[][]): void {
   const csvContent = [
-    headers.map(escapeCell).join(','),
-    ...rows.map((row) => row.map(escapeCell).join(',')),
+    headers.map(escapeCsvCell).join(','),
+    ...rows.map((row) => row.map(escapeCsvCell).join(',')),
   ].join('\r\n')
 
   const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' })

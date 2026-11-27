@@ -24,7 +24,8 @@ export function DashboardPage() {
 
     const handleExportPdf = async () => {
         try {
-            exportDashboardReport({ data: dashboardData, dateRange: customDateRange })
+            // ponytail: dashboardData is an unfiltered live snapshot; omit customDateRange so exports never mislabel past periods
+            exportDashboardReport({ data: dashboardData })
             toast.success('Dashboard report opened in new tab')
         } catch (err) {
             logger.error('Failed to export dashboard report:', err)
@@ -34,7 +35,7 @@ export function DashboardPage() {
 
     const handleExportSheets = async () => {
         try {
-            exportDashboardToSheets(dashboardData, 'Barangay 176-E', customDateRange)
+            exportDashboardToSheets(dashboardData, 'Barangay 176-E')
             toast.success('Dashboard report exported as Sheets (CSV)')
         } catch (err) {
             logger.error('Failed to export dashboard report to sheets:', err)
