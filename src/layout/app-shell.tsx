@@ -3,6 +3,7 @@ import { Link, Outlet, useLocation } from 'react-router'
 import { ChevronUp, Cpu, Layers, LayoutDashboard, Menu, Users, X } from 'lucide-react'
 import saganaLogo from '@/assets/sagana-logo.png'
 import { useAuthContext } from '@/context/auth-context'
+import { getInitials } from '@/lib/utils'
 
 import { AccountSettingsModal } from '@/components/settings/settings-modal'
 
@@ -12,18 +13,6 @@ const navLinks = [
   { to: '/admin/machines', label: 'Machines', icon: Cpu },
   { to: '/admin/compost-batches', label: 'Compost Batches', icon: Layers },
 ]
-
-function getUserInitials(fullName?: string | null) {
-  if (!fullName) return 'A'
-
-  return fullName
-    .split(' ')
-    .filter(Boolean)
-    .map((name) => name[0])
-    .slice(0, 2)
-    .join('')
-    .toUpperCase()
-}
 
 function getNavLinkClasses(isActive: boolean) {
   return [
@@ -54,7 +43,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   }, [mobileSidebarOpen])
 
   const currentPath = location.pathname
-  const userInitials = getUserInitials(user?.fullName)
+  const userInitials = getInitials(user?.fullName)
   const displayName = user?.fullName || 'Administrator'
 
   const sidebarContent = (

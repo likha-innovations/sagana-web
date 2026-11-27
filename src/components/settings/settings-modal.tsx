@@ -1,4 +1,4 @@
-import { useState, useEffect, type FormEvent } from 'react'
+import { useState, useEffect, useRef, type FormEvent } from 'react'
 import { useNavigate } from 'react-router'
 import { AlertCircle, Check, ChevronLeft, Eye, EyeOff, KeyRound, Loader2, LogOut, X } from 'lucide-react'
 import { useUser } from '@clerk/react'
@@ -7,19 +7,13 @@ import { useAuthContext } from '@/context/auth-context'
 import { userApi } from '@/api/user.api'
 import { PasswordChecklist } from '@/components/auth/password-checklist'
 import { extractClerkErrorMessage, isPasswordValid } from '@/lib/password-reset'
+import { useDialogFocus } from '@/hooks/use-dialog-focus'
+import { createLogger } from '@/lib/logger'
+import { getInitials } from '@/lib/utils'
+
+const logger = createLogger('SettingsModal')
 
 type ModalView = 'profile' | 'current_password' | 'new_password'
-
-function getUserInitials(fullName?: string | null) {
-  if (!fullName) return 'A'
-  return fullName
-    .split(' ')
-    .filter(Boolean)
-    .map((n) => n[0])
-    .slice(0, 2)
-    .join('')
-    .toUpperCase()
-}
 
 interface AccountSettingsModalProps {
   isOpen: boolean
@@ -62,12 +56,24 @@ function AccountSettingsModalContent({ onClose }: { onClose: () => void }) {
   const [confirmPasswordError, setConfirmPasswordError] = useState(false)
   const [passwordError, setPasswordError] = useState<string | null>(null)
   const [isUpdatingPassword, setIsUpdatingPassword] = useState(false)
+  const verifyAttemptRef = useRef(0)
+  const forgotDialogRef = useRef<HTMLDivElement>(null)
+  const forgotButtonRef = useRef<HTMLButtonElement>(null)
 
-  const userInitials = getUserInitials(displayName)
+  useDialogFocus({
+    isOpen: showForgotConfirm,
+    dialogRef: forgotDialogRef,
+    onClose: () => setShowForgotConfirm(false),
+    restoreFocusRef: forgotButtonRef,
+  })
+
+  const userInitials = getInitials(displayName)
   const roleLabel = role === 'admin' ? 'Administrator' : 'Operator'
   const hasNameChanged = firstName.trim() !== savedFirstName || lastName.trim() !== savedLastName
 
   const resetPasswordState = () => {
+    verifyAttemptRef.current += 1
+    setIsVerifyingPassword(false)
     setCurrentPassword('')
     setShowCurrentPassword(false)
     setCurrentPasswordError(null)
@@ -116,6 +122,7 @@ function AccountSettingsModalContent({ onClose }: { onClose: () => void }) {
       setSavedLastName(trimmedLast)
       toast.success('Profile information has been updated')
     } catch (err: unknown) {
+      logger.error('Failed to save profile changes:', err)
       toast.error(err instanceof Error ? err.message : 'Failed to save changes')
     } finally {
       setIsSaving(false)
@@ -130,30 +137,34 @@ function AccountSettingsModalContent({ onClose }: { onClose: () => void }) {
 
   const handleVerifyCurrentPassword = async (e: FormEvent) => {
     e.preventDefault()
-    const trimmed = currentPassword.trim()
-    if (!trimmed) {
+    if (!currentPassword.trim()) {
       setCurrentPasswordError('Please enter your current password')
       return
     }
 
+    const attemptId = ++verifyAttemptRef.current
     setIsVerifyingPassword(true)
     setCurrentPasswordError(null)
 
     try {
-      await verifyCurrentPassword(trimmed)
+      await verifyCurrentPassword(currentPassword)
+      if (verifyAttemptRef.current !== attemptId) return
       setView('new_password')
     } catch (err: unknown) {
+      if (verifyAttemptRef.current !== attemptId) return
+      logger.warn('Current password verification failed:', err)
       const raw = extractClerkErrorMessage(err, 'Current password is incorrect')
       const isMismatch = /incorrect|password|invalid/i.test(raw)
       setCurrentPasswordError(isMismatch ? 'Current password is incorrect' : raw)
     } finally {
-      setIsVerifyingPassword(false)
+      if (verifyAttemptRef.current === attemptId) {
+        setIsVerifyingPassword(false)
+      }
     }
   }
 
   const handleUpdatePassword = async (e: FormEvent) => {
     e.preventDefault()
-    const trimmedCurrent = currentPassword.trim()
 
     if (!newPassword || !confirmPassword) {
       setNewPasswordError(!newPassword)
@@ -169,7 +180,7 @@ function AccountSettingsModalContent({ onClose }: { onClose: () => void }) {
       return
     }
 
-    if (newPassword === trimmedCurrent) {
+    if (newPassword === currentPassword) {
       setNewPasswordError(true)
       setConfirmPasswordError(false)
       setPasswordError('New password must be different from current password')
@@ -189,11 +200,12 @@ function AccountSettingsModalContent({ onClose }: { onClose: () => void }) {
     setPasswordError(null)
 
     try {
-      await updatePassword(trimmedCurrent, newPassword)
+      await updatePassword(currentPassword, newPassword)
       resetPasswordState()
       setView('profile')
       toast.success('Password updated successfully')
     } catch (err: unknown) {
+      logger.warn('Password update failed:', err)
       const raw = extractClerkErrorMessage(err, 'Failed to update password. Please try again.')
       if (/current.*password|incorrect.*password/i.test(raw)) {
         setPasswordError('Current password is incorrect')
@@ -242,6 +254,7 @@ function AccountSettingsModalContent({ onClose }: { onClose: () => void }) {
       <div className="fixed inset-0" onClick={onClose} aria-hidden="true" />
 
       <div
+        inert={showForgotConfirm || showLogoutConfirm}
         className={`relative w-full ${
           isPasswordFlow ? 'max-w-120' : 'max-w-125'
         } rounded-[22px] sm:rounded-[28px] bg-[#F8F7F2] shadow-2xl animate-in zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto`}
@@ -413,6 +426,7 @@ function AccountSettingsModalContent({ onClose }: { onClose: () => void }) {
 
               <div className="flex justify-end">
                 <button
+                  ref={forgotButtonRef}
                   type="button"
                   onClick={() => setShowForgotConfirm(true)}
                   disabled={!verifiedEmail}
@@ -548,11 +562,18 @@ function AccountSettingsModalContent({ onClose }: { onClose: () => void }) {
             aria-hidden="true"
           />
           <div className="fixed inset-0 z-70 flex items-center justify-center p-4">
-            <div className="w-full max-w-85 rounded-[22px] sm:rounded-[28px] bg-white p-5 sm:p-7 shadow-2xl animate-in zoom-in-95 duration-200 text-center">
+            <div
+              ref={forgotDialogRef}
+              role="alertdialog"
+              aria-modal="true"
+              aria-labelledby="forgot-confirm-title"
+              tabIndex={-1}
+              className="w-full max-w-85 rounded-[22px] sm:rounded-[28px] bg-white p-5 sm:p-7 shadow-2xl animate-in zoom-in-95 duration-200 text-center outline-none"
+            >
               <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-[14px] sm:rounded-[18px] bg-brand-100">
                 <KeyRound className="h-5 w-5 text-primary" />
               </div>
-              <p className="text-sm font-bold text-foreground mb-1.5">
+              <p id="forgot-confirm-title" className="text-sm font-bold text-foreground mb-1.5">
                 Reset via email code?
               </p>
               <p className="text-xs text-text-email mb-6">

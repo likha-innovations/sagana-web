@@ -2,8 +2,11 @@ import { useState, type FormEvent } from 'react'
 import { Link, Navigate, useNavigate, useSearchParams } from 'react-router'
 import { toast } from 'sonner'
 import { useAuthContext } from '@/context/auth-context'
+import { createLogger } from '@/lib/logger'
 import { AlertCircle, Eye, EyeOff, Loader2 } from 'lucide-react'
 import saganaLogo from '@/assets/sagana-logo.png'
+
+const logger = createLogger('SignInPage')
 
 function SaganaLogo({ className = '' }: { className?: string }) {
   return (
@@ -56,6 +59,7 @@ export function SignInPage() {
       toast.success('Signed in successfully.')
       navigate('/admin')
     } catch (err: unknown) {
+      logger.warn('Sign-in failed:', err)
       setHasError(true)
 
       const rawMessage = (err as Error)?.message || ''

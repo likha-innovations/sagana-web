@@ -17,13 +17,18 @@ import {
   persistKeepSignedIn,
   shouldExpireSessionOnBoot,
 } from '@/lib/session-persistence'
+import { extractClerkErrorMessage } from '@/lib/password-reset'
 
 const logger = createLogger('AuthContext')
+
+export type ResetPrepStatus = 'idle' | 'pending' | 'sent' | 'failed'
 
 interface AuthContextType {
   isSignedIn: boolean
   isLoaded: boolean
-  isPreparingReset: boolean
+  resetPrepStatus: ResetPrepStatus
+  resetPrepError: string | null
+  clearResetPrep: () => void
   user: User | null
   role: UserRole
   getToken: () => Promise<string | null>
@@ -47,7 +52,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const { signIn: clerkSignIn, setActive: setSignInActive, isLoaded: signInLoaded } = useSignIn()
 
   const [isActionLoading, setIsActionLoading] = useState(false)
-  const [isPreparingReset, setIsPreparingReset] = useState(false)
+  const [resetPrepStatus, setResetPrepStatus] = useState<ResetPrepStatus>('idle')
+  const [resetPrepError, setResetPrepError] = useState<string | null>(null)
+  const [bootSignOutError, setBootSignOutError] = useState(false)
   const [dbUser, setDbUser] = useState<User | null>(null)
   const [isProfileFetched, setIsProfileFetched] = useState(false)
   const isExpiringBootSessionRef = useRef(false)
@@ -58,23 +65,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setAuthTokenGetter(getToken)
   }, [getToken])
 
-  useEffect(() => {
-    if (!needsSessionExpiry || isExpiringBootSessionRef.current) {
-      return
-    }
+  const expireBootSession = useCallback(() => {
+    if (isExpiringBootSessionRef.current) return
     isExpiringBootSessionRef.current = true
+    setBootSignOutError(false)
     logger.info('Expiring non-persistent session after browser/tab restart')
     void clerkSignOut(() => {})
-      .catch((err) => {
-        logger.warn('Failed to expire non-persistent session on boot', err)
-      })
-      .finally(() => {
+      .then(() => {
         clearSessionPersistence()
         setDbUser(null)
         setIsProfileFetched(false)
+      })
+      .catch((err) => {
+        logger.warn('Failed to expire non-persistent session on boot', err)
+        setBootSignOutError(true)
+      })
+      .finally(() => {
         isExpiringBootSessionRef.current = false
       })
-  }, [needsSessionExpiry, clerkSignOut])
+  }, [clerkSignOut])
+
+  useEffect(() => {
+    if (!needsSessionExpiry || bootSignOutError) {
+      return
+    }
+    expireBootSession()
+  }, [needsSessionExpiry, bootSignOutError, expireBootSession])
 
   useEffect(() => {
     let isMounted = true
@@ -162,7 +178,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (attempt.status === 'complete') {
           logger.info(`Sign in complete for ${email}`)
 
-          persistKeepSignedIn(keepSignedIn)
+          const persisted = persistKeepSignedIn(keepSignedIn)
+          if (!persisted && !keepSignedIn) {
+            logger.warn('Browser storage unavailable; keep-signed-in=false cannot be persisted')
+          }
           await setSignInActive({ session: attempt.createdSessionId })
 
           let verifiedRole: string | null = null
@@ -347,17 +366,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [clerkSignOut]
   )
 
+  const clearResetPrep = useCallback(() => {
+    setResetPrepStatus('idle')
+    setResetPrepError(null)
+  }, [])
+
   const preparePasswordReset = useCallback(
     async (email: string) => {
-      setIsPreparingReset(true)
+      setResetPrepStatus('pending')
+      setResetPrepError(null)
       try {
         await clerkSignOut(() => {})
         clearSessionPersistence()
         setDbUser(null)
         setIsProfileFetched(false)
         await requestPasswordReset(email)
-      } finally {
-        setIsPreparingReset(false)
+        setResetPrepStatus('sent')
+      } catch (err: unknown) {
+        const message = extractClerkErrorMessage(
+          err,
+          'Unable to send verification code. Please try again.'
+        )
+        setResetPrepStatus('failed')
+        setResetPrepError(message)
+        throw err
       }
     },
     [clerkSignOut, requestPasswordReset]
@@ -367,7 +399,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     () => ({
       isSignedIn: !!isSignedIn,
       isLoaded,
-      isPreparingReset,
+      resetPrepStatus,
+      resetPrepError,
+      clearResetPrep,
       user,
       role,
       getToken,
@@ -383,7 +417,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [
       isSignedIn,
       isLoaded,
-      isPreparingReset,
+      resetPrepStatus,
+      resetPrepError,
+      clearResetPrep,
       user,
       role,
       getToken,
@@ -397,6 +433,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       signOut,
     ]
   )
+
+  if (needsSessionExpiry && bootSignOutError) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-page p-6 text-center">
+        <div className="max-w-sm rounded-2xl border border-border bg-[#FDFCF7] p-6 shadow-card space-y-3">
+          <h2 className="text-base font-bold text-foreground">Session expired</h2>
+          <p className="text-xs text-text-email">
+            We couldn&apos;t sign out your previous session automatically. Retry to continue to sign in.
+          </p>
+          <button
+            type="button"
+            onClick={expireBootSession}
+            className="h-10 rounded-full bg-primary px-5 text-xs font-semibold text-white hover:bg-[#627920] cursor-pointer"
+          >
+            Retry sign out
+          </button>
+        </div>
+      </div>
+    )
+  }
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }

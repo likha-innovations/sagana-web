@@ -33,6 +33,7 @@ export function PasswordChecklist({ password, hasError = false }: PasswordCheckl
                 valid ? 'text-primary font-medium' : isError ? 'text-red-600' : 'text-text-email'
               }
             >
+              <span className="sr-only">{valid ? 'Met: ' : 'Not met: '}</span>
               {rule.label}
             </span>
           </li>

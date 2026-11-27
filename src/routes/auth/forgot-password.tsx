@@ -4,6 +4,7 @@ import {
   useEffect,
   type FormEvent,
   type ChangeEvent,
+  type ClipboardEvent,
   type KeyboardEvent as ReactKeyboardEvent,
 } from 'react'
 import { useNavigate, useSearchParams } from 'react-router'
@@ -25,6 +26,9 @@ import {
   extractClerkErrorMessage,
   isPasswordValid,
 } from '@/lib/password-reset'
+import { createLogger } from '@/lib/logger'
+
+const logger = createLogger('ForgotPasswordPage')
 
 function SaganaLogo({ className = '' }: { className?: string }) {
   return (
@@ -49,8 +53,11 @@ export function ForgotPasswordPage() {
     verifyPasswordResetCode,
     resetPassword,
     isLoaded,
-    isPreparingReset,
+    resetPrepStatus,
+    resetPrepError,
+    clearResetPrep,
   } = useAuthContext()
+  const isPreparingReset = resetPrepStatus === 'pending'
 
   const initialEmail = searchParams.get('email') || ''
   const initialStep: ForgotStep =
@@ -75,7 +82,34 @@ export function ForgotPasswordPage() {
   const [isSendingOtp, setIsSendingOtp] = useState(false)
   const [isVerifyingOtp, setIsVerifyingOtp] = useState(false)
   const [isResetting, setIsResetting] = useState(false)
-  const [resendCooldown, setResendCooldown] = useState(initialStep === 'otp' ? 60 : 0)
+  const [resendCooldown, setResendCooldown] = useState(0)
+  const stepAttemptRef = useRef(0)
+
+  const transitionToStep = (nextStep: ForgotStep) => {
+    stepAttemptRef.current += 1
+    setStep(nextStep)
+  }
+
+  useEffect(() => {
+    return () => {
+      clearResetPrep()
+    }
+  }, [clearResetPrep])
+
+  useEffect(() => {
+    if (step !== 'otp' || resetPrepStatus !== 'sent') return
+    const timer = setTimeout(() => {
+      setResendCooldown(60)
+      clearResetPrep()
+    }, 0)
+    return () => clearTimeout(timer)
+  }, [step, resetPrepStatus, clearResetPrep])
+
+  const displayedOtpError =
+    otpError ??
+    (step === 'otp' && resetPrepStatus === 'failed'
+      ? resetPrepError || 'No code was sent. Click Resend to try again.'
+      : null)
 
   useEffect(() => {
     if (step === 'otp') {
@@ -101,39 +135,52 @@ export function ForgotPasswordPage() {
       return
     }
 
+    const attemptId = ++stepAttemptRef.current
     setIsSendingOtp(true)
     setEmailError(null)
 
     try {
       await requestPasswordReset(parsed.data.email)
+      if (stepAttemptRef.current !== attemptId) return
       setOtp(EMPTY_OTP)
       setOtpError(null)
       setResendCooldown(60)
-      setStep('otp')
+      transitionToStep('otp')
     } catch (err: unknown) {
+      if (stepAttemptRef.current !== attemptId) return
+      logger.warn('Password reset request failed:', err)
       setEmailError(
         extractClerkErrorMessage(err, 'Unable to find account with this email address')
       )
     } finally {
-      setIsSendingOtp(false)
+      if (stepAttemptRef.current === attemptId) {
+        setIsSendingOtp(false)
+      }
     }
   }
 
   const handleResendOtp = async () => {
     if (resendCooldown > 0 || isSendingOtp || isPreparingReset || !email.trim()) return
 
+    const attemptId = ++stepAttemptRef.current
+    clearResetPrep()
     setIsSendingOtp(true)
     setOtpError(null)
 
     try {
       await requestPasswordReset(email.trim())
+      if (stepAttemptRef.current !== attemptId) return
       setOtp(EMPTY_OTP)
       setResendCooldown(60)
       otpInputRefs.current[0]?.focus()
     } catch (err: unknown) {
+      if (stepAttemptRef.current !== attemptId) return
+      logger.warn('Resend OTP failed:', err)
       setOtpError(extractClerkErrorMessage(err, 'Unable to resend OTP. Please try again.'))
     } finally {
-      setIsSendingOtp(false)
+      if (stepAttemptRef.current === attemptId) {
+        setIsSendingOtp(false)
+      }
     }
   }
 
@@ -146,23 +193,30 @@ export function ForgotPasswordPage() {
       return
     }
 
+    const attemptId = ++stepAttemptRef.current
     setIsVerifyingOtp(true)
     setOtpError(null)
 
     try {
       await verifyPasswordResetCode(parsed.data.code)
-      setStep('new_password')
+      if (stepAttemptRef.current !== attemptId) return
+      transitionToStep('new_password')
     } catch (err: unknown) {
+      if (stepAttemptRef.current !== attemptId) return
+      logger.warn('OTP verification failed:', err)
       setOtpError(extractClerkErrorMessage(err, 'Incorrect one-time code'))
     } finally {
-      setIsVerifyingOtp(false)
+      if (stepAttemptRef.current === attemptId) {
+        setIsVerifyingOtp(false)
+      }
     }
   }
 
-  const handleOtpChange = (index: number, e: ChangeEvent<HTMLInputElement>) => {
+  const applyOtpInput = (index: number, rawValue: string) => {
     if (otpError) setOtpError(null)
+    if (resetPrepStatus === 'failed') clearResetPrep()
 
-    const { nextOtp, focusIndex } = applyOtpChange(otp, index, e.target.value)
+    const { nextOtp, focusIndex } = applyOtpChange(otp, index, rawValue)
     setOtp(nextOtp)
 
     if (focusIndex !== null) {
@@ -173,6 +227,17 @@ export function ForgotPasswordPage() {
     if (nextOtp.every(Boolean)) {
       void verifyOtpCode(nextOtp.join(''))
     }
+  }
+
+  const handleOtpChange = (index: number, e: ChangeEvent<HTMLInputElement>) => {
+    applyOtpInput(index, e.target.value)
+  }
+
+  const handleOtpPaste = (index: number, e: ClipboardEvent<HTMLInputElement>) => {
+    const pasted = e.clipboardData.getData('text')
+    if (!pasted) return
+    e.preventDefault()
+    applyOtpInput(index, pasted)
   }
 
   const handleOtpKeyDown = (index: number, e: ReactKeyboardEvent<HTMLInputElement>) => {
@@ -213,6 +278,7 @@ export function ForgotPasswordPage() {
       return
     }
 
+    const attemptId = ++stepAttemptRef.current
     setIsResetting(true)
     setNewPasswordError(false)
     setConfirmPasswordError(false)
@@ -220,15 +286,20 @@ export function ForgotPasswordPage() {
 
     try {
       await resetPassword(newPassword, otp.join('').trim())
-      setStep('success')
+      if (stepAttemptRef.current !== attemptId) return
+      transitionToStep('success')
     } catch (err: unknown) {
+      if (stepAttemptRef.current !== attemptId) return
+      logger.warn('Password reset completion failed:', err)
       setNewPasswordError(true)
       setConfirmPasswordError(true)
       setPasswordError(
         extractClerkErrorMessage(err, 'Failed to reset password. The OTP may have expired.')
       )
     } finally {
-      setIsResetting(false)
+      if (stepAttemptRef.current === attemptId) {
+        setIsResetting(false)
+      }
     }
   }
 
@@ -237,12 +308,15 @@ export function ForgotPasswordPage() {
       navigate('/sign-in')
     } else if (step === 'otp') {
       setOtpError(null)
-      setStep('email')
+      setIsVerifyingOtp(false)
+      setIsSendingOtp(false)
+      transitionToStep('email')
     } else if (step === 'new_password') {
       setNewPasswordError(false)
       setConfirmPasswordError(false)
       setPasswordError(null)
-      setStep('otp')
+      setIsResetting(false)
+      transitionToStep('otp')
     } else {
       navigate('/sign-in')
     }
@@ -377,15 +451,15 @@ export function ForgotPasswordPage() {
                         type="text"
                         inputMode="numeric"
                         autoComplete={idx === 0 ? 'one-time-code' : 'off'}
-                        maxLength={6}
                         value={digit}
                         onChange={(e) => handleOtpChange(idx, e)}
+                        onPaste={(e) => handleOtpPaste(idx, e)}
                         onKeyDown={(e) => handleOtpKeyDown(idx, e)}
                         disabled={isVerifyingOtp || isPreparingReset}
                         aria-label={`One-time code digit ${idx + 1} of 6`}
-                        style={otpError ? { borderColor: ERROR_RED } : undefined}
+                        style={displayedOtpError ? { borderColor: ERROR_RED } : undefined}
                         className={`h-13 w-11 sm:w-12 text-center text-xl font-bold rounded-2xl outline-none transition-all disabled:opacity-50 ${
-                          otpError
+                          displayedOtpError
                             ? 'border-2 border-red-500 bg-red-50/20 text-red-600 focus:border-red-500'
                             : digit
                             ? 'border-[1.5px] border-foreground/50 bg-white text-foreground'
@@ -395,13 +469,13 @@ export function ForgotPasswordPage() {
                     ))}
                   </div>
 
-                  {otpError && (
+                  {displayedOtpError && (
                     <div
                       role="alert"
                       className="flex items-center gap-1.5 pt-1 text-sm font-semibold text-red-600"
                     >
                       <AlertCircle className="w-4 h-4 shrink-0" />
-                      <span>{otpError}</span>
+                      <span>{displayedOtpError}</span>
                     </div>
                   )}
                 </div>

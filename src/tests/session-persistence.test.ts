@@ -64,4 +64,34 @@ describe('Session Persistence (Keep me signed in)', () => {
     expect(session.getItem(TAB_SESSION_KEY)).toBeNull()
     expect(shouldExpireSessionOnBoot({ local, session })).toBe(false)
   })
+
+  it('rolls back localStorage write and returns false if sessionStorage write fails', () => {
+    const local = createMemoryStorage()
+    local.setItem(KEEP_SIGNED_IN_KEY, 'true')
+    const throwingSession: StorageLike = {
+      getItem: () => null,
+      setItem: () => {
+        throw new Error('QuotaExceededError')
+      },
+      removeItem: () => {},
+    }
+
+    const ok = persistKeepSignedIn(false, { local, session: throwingSession })
+
+    expect(ok).toBe(false)
+    expect(local.getItem(KEEP_SIGNED_IN_KEY)).toBe('true')
+  })
+
+  it('returns false safely when storage getters fail', () => {
+    const throwingLocal: StorageLike = {
+      getItem: () => {
+        throw new Error('SecurityError')
+      },
+      setItem: () => {},
+      removeItem: () => {},
+    }
+    expect(shouldExpireSessionOnBoot({ local: throwingLocal, session: createMemoryStorage() })).toBe(
+      false
+    )
+  })
 })
