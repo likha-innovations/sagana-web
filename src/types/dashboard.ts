@@ -10,62 +10,64 @@ export interface DashboardData {
   userStatusData: UserStatusSegment[]
   recentBatches: BatchRow[]
   totalThisMonth: number
+  barangayName?: string
 }
 
-export const defaultDashboardData: DashboardData = {
+export const emptyDashboardData: DashboardData = {
   kpis: [
     {
       label: 'Total waste processed',
-      value: '20',
+      value: '0',
       unit: 'kg',
-      delta: '+12%',
+      delta: '0 batches',
       deltaTone: 'good',
       icon: Recycle,
     },
     {
       label: 'Curing-ready compost produced',
-      value: '20',
+      value: '0',
       unit: 'kg',
-      delta: '+8%',
+      delta: '0 completed',
       deltaTone: 'good',
       icon: Sprout,
     },
     {
       label: 'Estimated avoided methane',
-      value: '50',
+      value: '0',
       unit: 'CO₂',
-      delta: '+15%',
+      delta: '0.0t est.',
       deltaTone: 'good',
       icon: Wind,
     },
     {
       label: 'Machines online',
-      value: '6',
-      unit: '/ 7',
-      delta: '+1',
+      value: '0',
+      unit: '/ 0',
+      delta: '0',
       deltaTone: 'good',
       icon: Cpu,
     },
     {
       label: 'Avg. days to stabilization',
-      value: '8',
+      value: '0',
       unit: 'days',
-      delta: '-2 days',
+      delta: 'N/A',
       deltaTone: 'good',
       icon: Clock,
     },
   ],
   phaseData: [
-    { name: 'Cooling', value: 1, color: '#C9E752' },
+    { name: 'Cooling', value: 0, color: '#C9E752' },
     { name: 'Thermophilic', value: 0, color: '#97BC39' },
     { name: 'Mesophilic', value: 0, color: '#566811' },
   ],
   userStatusData: [
-    { name: 'Active', value: 5, color: '#97BC39' },
-    { name: 'Suspended', value: 1, color: '#DCDBD5' },
+    { name: 'Active', value: 0, color: '#97BC39' },
+    { name: 'Suspended', value: 0, color: '#DCDBD5' },
   ],
   recentBatches: [],
-  totalThisMonth: 1,
+  totalThisMonth: 0,
 }
 
-export const initialDashboardData: DashboardData = defaultDashboardData
+export const defaultDashboardData: DashboardData = emptyDashboardData
+export const initialDashboardData: DashboardData = emptyDashboardData

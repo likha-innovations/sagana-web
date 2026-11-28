@@ -2,13 +2,7 @@ import { useState, useEffect, type ReactNode } from 'react'
 import { Search, Calendar } from 'lucide-react'
 import { CustomDropdown, type DropdownOption } from './custom-dropdown'
 import { ExportDropdown } from './export-dropdown'
-
-const DATE_RANGE_OPTIONS: DropdownOption[] = [
-  { value: 'all', label: 'All time' },
-  { value: '7d', label: 'Last 7 days' },
-  { value: '30d', label: 'Last 30 days' },
-  { value: 'this-year', label: 'This year' },
-]
+import { DATE_RANGE_OPTIONS } from '@/lib/date-range'
 
 export interface FilterToolbarProps {
   search: string

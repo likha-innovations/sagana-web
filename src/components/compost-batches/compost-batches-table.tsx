@@ -30,6 +30,16 @@ function getStatusBadgeClasses(status: BatchPhase) {
   }
 }
 
+const BATCH_COLUMNS = [
+  { label: 'Batch ID', widthClass: 'w-[19%]' },
+  { label: 'Started by', widthClass: 'w-[12%]' },
+  { label: 'Machine', widthClass: 'w-[19%]' },
+  { label: 'Status', widthClass: 'w-[13%]' },
+  { label: 'Feedstock weight', widthClass: 'w-[14%]' },
+  { label: 'Started on', widthClass: 'w-[12%]' },
+  { label: 'Days composting', widthClass: 'w-[11%]' },
+] as const
+
 export function CompostBatchesTable({
   batches,
   isLoading = false,
@@ -38,6 +48,18 @@ export function CompostBatchesTable({
   onClearFilters,
   onView,
 }: CompostBatchesTableProps) {
+  const tableHeader = (
+    <thead>
+      <tr className="border-b border-border text-xs font-semibold text-foreground">
+        {BATCH_COLUMNS.map((col) => (
+          <th key={col.label} scope="col" className={`${col.widthClass} pb-3 font-semibold`}>
+            {col.label}
+          </th>
+        ))}
+      </tr>
+    </thead>
+  )
+
   if (isLoading) {
     return (
       <>
@@ -53,18 +75,7 @@ export function CompostBatchesTable({
         </div>
         <div className="hidden sm:block w-full overflow-x-auto [&::-webkit-scrollbar]:hidden scrollbar-none">
           <table className="w-full min-w-200 table-fixed border-collapse text-left">
-            <thead>
-              <tr className="border-b border-border text-xs font-semibold text-foreground">
-                <th scope="col" className="w-[18%] pb-3 font-semibold">Batch ID</th>
-                <th scope="col" className="w-[12%] pb-3 font-semibold">Started by</th>
-                <th scope="col" className="w-[18%] pb-3 font-semibold">Machine</th>
-                <th scope="col" className="w-[12%] pb-3 font-semibold">Status</th>
-                <th scope="col" className="w-[14%] pb-3 font-semibold">Feedstock weight</th>
-                <th scope="col" className="w-[12%] pb-3 font-semibold">Started on</th>
-                <th scope="col" className="w-[9%] pb-3 font-semibold">Days composting</th>
-                <th scope="col" className="w-[5%] pb-3 text-right pr-10"><span className="sr-only">Actions</span></th>
-              </tr>
-            </thead>
+            {tableHeader}
             <tbody className="divide-y divide-border">
               {Array.from({ length: 6 }).map((_, i) => (
                 <tr key={i} className="h-13.5" role="status" aria-label="Loading row">
@@ -75,7 +86,6 @@ export function CompostBatchesTable({
                   <td className="py-2.5"><Skeleton className="h-4 w-16 rounded" /></td>
                   <td className="py-2.5"><Skeleton className="h-4 w-20 rounded" /></td>
                   <td className="py-2.5"><Skeleton className="h-4 w-8 rounded" /></td>
-                  <td className="py-2.5 text-right pr-10"><Skeleton className="ml-auto h-4 w-10 rounded" /></td>
                 </tr>
               ))}
             </tbody>
@@ -157,18 +167,7 @@ export function CompostBatchesTable({
 
       <div className="hidden sm:block w-full overflow-x-auto [&::-webkit-scrollbar]:hidden scrollbar-none">
         <table className="w-full min-w-200 table-fixed border-collapse text-left">
-          <thead>
-            <tr className="border-b border-border text-xs font-semibold text-foreground">
-              <th scope="col" className="w-[18%] pb-3 font-semibold">Batch ID</th>
-              <th scope="col" className="w-[12%] pb-3 font-semibold">Started by</th>
-              <th scope="col" className="w-[18%] pb-3 font-semibold">Machine</th>
-              <th scope="col" className="w-[12%] pb-3 font-semibold">Status</th>
-              <th scope="col" className="w-[14%] pb-3 font-semibold">Feedstock weight</th>
-              <th scope="col" className="w-[12%] pb-3 font-semibold">Started on</th>
-              <th scope="col" className="w-[9%] pb-3 font-semibold">Days composting</th>
-              <th scope="col" className="w-[5%] pb-3 text-right pr-10"><span className="sr-only">Actions</span></th>
-            </tr>
-          </thead>
+          {tableHeader}
           <tbody className="divide-y divide-border">
             {batches.map((batch) => {
               const phase = getBatchPhase(batch)
@@ -185,10 +184,7 @@ export function CompostBatchesTable({
                   </td>
                   <td className="py-2 pr-3 text-xs font-normal text-foreground">{batch.totalWeight} kg</td>
                   <td className="py-2 pr-3 text-xs font-normal text-foreground">{startedOn}</td>
-                  <td className="py-2 pr-3 text-xs font-normal text-foreground">{days}</td>
-                  <td className="py-2 text-right pr-10" onClick={(e) => e.stopPropagation()}>
-                    <button type="button" onClick={() => onView?.(batch)} className="inline-block text-xs font-bold leading-none text-primary hover:underline cursor-pointer">View</button>
-                  </td>
+                  <td className="py-2 text-xs font-normal text-foreground">{days}</td>
                 </tr>
               )
             })}

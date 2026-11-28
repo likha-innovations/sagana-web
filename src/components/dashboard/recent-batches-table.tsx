@@ -11,6 +11,7 @@ export type BatchRow = {
 type RecentBatchesTableProps = {
     rows: BatchRow[]
     totalThisMonth: number
+    periodLabel?: string
 }
 
 const columns = [
@@ -23,7 +24,7 @@ const columns = [
     { label: 'Completed', width: 'w-[9%]', align: 'text-right' },
 ] as const
 
-export function RecentBatchesTable({ rows, totalThisMonth }: RecentBatchesTableProps) {
+export function RecentBatchesTable({ rows, totalThisMonth, periodLabel }: RecentBatchesTableProps) {
     return (
         <article className="flex flex-1 flex-col justify-between rounded-[20px] bg-white p-5 shadow-card transition-all overflow-hidden">
             <div className="flex flex-col">
@@ -129,7 +130,7 @@ export function RecentBatchesTable({ rows, totalThisMonth }: RecentBatchesTableP
 
             <div className="mt-auto pt-4">
                 <p className="text-xs font-medium leading-[1.4] text-foreground">
-                    Showing {rows.length} of {totalThisMonth || rows.length} batches this month
+                    Showing {rows.length} of {totalThisMonth || rows.length} completed batches{periodLabel ? ` (${periodLabel})` : ' this month'}
                 </p>
             </div>
         </article>
